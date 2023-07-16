@@ -29,7 +29,7 @@ echo "Your public key is:"
 cat ~/.ssh/id_rsa.pub
 
 # Disable password authentication.
-sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
+sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
 
 # Prompt for the user's SSH key.
 echo "Enter your SSH key: "
