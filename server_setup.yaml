@@ -1,0 +1,51 @@
+- hosts: all
+  become: yes
+  vars:
+    openstack_release: "queens"
+  tasks:
+    - name: Install cockpit
+      apt:
+        name: cockpit
+        state: present
+    - name: Enable cockpit
+      service:
+        name: cockpit
+        state: started
+        enabled: yes
+    - name: Install apparmor-utils
+      apt:
+        name: apparmor-utils
+        state: present
+    - name: Install Terraform
+      apt:
+        name: terraform
+        state: present
+    - name: Check the Terraform version
+      terraform:
+        command: version
+    - name: Enable AppArmor enforce mode
+      command: aa-enforce /etc/apparmor.d/*
+    - name: Restart the system
+      reboot:
+        reboot_type: force
+    - name: Install OpenStack dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - openssh-server
+        - python-openstackclient
+        - python-pip
+    - name: Install Magnum
+      pip:
+        name: magnum
+        state: present
+    - name: Configure Magnum
+      template:
+        src: magnum.conf.j2
+        dest: /etc/magnum/magnum.conf
+    - name: Start Magnum
+      service:
+        name: magnum-api
+        state: started
+        enabled: yes
