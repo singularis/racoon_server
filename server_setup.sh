@@ -31,6 +31,35 @@ kubectl version
 sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
 # Disable password authentication.
 
+# Print a success message.
+echo "The SSH port has been successfully changed to $new_port."
+
+# Check if Python is already installed.
+if python --version > /dev/null; then
+  echo "Python is already installed."
+  exit 0
+fi
+
+# Install Python using apt.
+sudo apt install python3
+sudo apt install python3-pip
+sudo apt install ansible
+
+# Check the Python version.
+python3 --version
+
+# Install Ansible using pip.
+pip3 install ansible
+
+# Check the Ansible version.
+ansible --version
+
+# Restart the SSH service.
+service ssh restart
+
+ansible-playbook server_setup.yaml
+. ./openstack.sh
+
 # Get the current SSH port.
 current_port=$(grep 'Port ' /etc/ssh/sshd_config | awk '{print $2}')
 
@@ -49,29 +78,3 @@ sed -i "s/$current_port/$new_port/g" /etc/ssh/sshd_config
 
 # Restart the SSH service.
 service ssh restart
-
-# Print a success message.
-echo "The SSH port has been successfully changed to $new_port."
-
-# Check if Python is already installed.
-if python --version > /dev/null; then
-  echo "Python is already installed."
-  exit 0
-fi
-
-# Install Python using apt.
-sudo apt install python3
-
-# Check the Python version.
-python --version
-
-# Install Ansible using pip.
-pip install ansible
-
-# Check the Ansible version.
-ansible --version
-
-# Restart the SSH service.
-service ssh restart
-
-ansible-playbook server_setup.yml
