@@ -3,8 +3,6 @@
   become: yes
   hosts: localhost
   connection: local 
-  vars:
-    openstack_release: "queens"
   tasks:
     - name: Update apt cache
       apt:
@@ -75,6 +73,11 @@
       apt:
         name: sudo
         state: present
-    - name: Install OpenStack
-      script:
-        src: ./openstack.sh
+    - name: Setup slim
+      apt:
+        name: slim
+        state: present
+    - name: Setup desktop
+      apt:
+        name: slim
+        state: ubuntu-desktop
