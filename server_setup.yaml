@@ -81,3 +81,16 @@
       apt:
         name: slim
         state: ubuntu-desktop
+    - name: Install Minikube
+      apt:
+        name: minikube
+        state: present
+
+    - name: Start Minikube
+      shell: |
+        minikube start
+
+    - name: Verify that Minikube is running
+      shell: |
+        minikube status
+    
