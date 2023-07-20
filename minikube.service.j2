@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/minikube start
+ExecStart=/usr/local/bin/minikube start --driver docker
 Restart=always
 RestartSec=5
 
