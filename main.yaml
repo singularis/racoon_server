@@ -1,0 +1,17 @@
+---
+- name: "Main file server configuration"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+  - name: Run user bash script
+    shell: |
+      source ./user_setup.sh
+  - name: Run server bash script
+    become: yes
+    shell: |
+      source ./server_setup.sh
+- name: Import basic server setup
+  import_playbook: basic_server_setup.yaml
+- name: Import kuberentes server setup
+  import_playbook: kuberentes_setup.yaml

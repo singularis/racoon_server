@@ -99,6 +99,11 @@
         name: kubectl
         classic: yes
         state: present
+    - name: Install helm snap
+      snap:
+        name: helm 
+        classic: yes
+        state: present
     - name: Install vscode
       snap:
         name: code
@@ -111,6 +116,10 @@
     - name: Setup xvfb
       apt:
         name: xvfb
+        state: present
+    - name: Install ansible-lint
+      pip:
+        name: ansible-lint
         state: present
     - name: download sources chrome
       get_url: url=https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb dest=/tmp/google-chrome-stable_current_amd64.deb

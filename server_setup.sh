@@ -57,8 +57,6 @@ ansible --version
 # Restart the SSH service.
 service ssh restart
 
-ansible-playbook server_setup.yaml
-
 # Get the current SSH port.
 current_port=$(grep 'Port ' /etc/ssh/sshd_config | awk '{print $2}')
 

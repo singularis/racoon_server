@@ -1,12 +1,15 @@
 [Unit]
-Description=Minikube Kubernetes
-After=network.target
+Description=minikube
+After=network-online.target firewalld.service containerd.service docker.service
+Wants=network-online.target docker.service
+Requires=docker.socket containerd.service docker.service
 
 [Service]
-Type=simple
-ExecStart=/usr/local/bin/minikube start --driver docker
-Restart=always
-RestartSec=5
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/minikube start --driver=docker
+ExecStop=/usr/local/bin/minikube stop
+User=
 
 [Install]
 WantedBy=multi-user.target
