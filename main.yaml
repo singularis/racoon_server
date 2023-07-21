@@ -6,12 +6,12 @@
   tasks:
   - name: Run user bash script
     shell: |
-      source ./user_setup.sh
+      source ./server_configration/user_setup.sh
   - name: Run server bash script
     become: yes
     shell: |
-      source ./server_setup.sh
+      source ./server_configration/server_setup.sh
 - name: Import basic server setup
-  import_playbook: basic_server_setup.yaml
+  import_playbook: ./server_configration/basic_server_setup.yaml
 - name: Import kuberentes server setup
   import_playbook: kuberentes_setup.yaml

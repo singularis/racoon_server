@@ -1,0 +1,7 @@
+---
+- name: "Main file server configuration"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+- name: Setup kube-dashboards
+  import_playbook: ./kube_dasboard/kuberentes_dasboard.yaml

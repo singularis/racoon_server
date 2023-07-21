@@ -1,0 +1,49 @@
+---
+- name: "Kuberentes configuration"
+  hosts: localhost
+  connection: local
+  vars_files:
+    - vars.yaml
+  tasks:
+    - name: Install openshift Python module
+      pip:
+        name: openshift
+        state: present
+    - name: Add stable Helm repository
+      kubernetes.core.helm_repository:
+        name: kubernetes-dashboard
+        repo_url: https://kubernetes.github.io/dashboard/
+    - name: Create Kubernetes Dashboard namespace
+      ansible.builtin.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ k8s_dashboard_namespace }}"
+        state: present
+    - name: Remove Kubernetes Dashboard
+      kubernetes.core.helm:
+        namespace: "{{ k8s_dashboard_namespace }}"
+        release_name: kubernetes-dashboar
+        state: absent
+    - name: Install Kubernetes Dashboard
+      shell: |
+        helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --namespace kubernetes-dashboard
+    - name: Create Kubernetes ServiceAccount
+      k8s:
+        api_version: v1
+        kind: ServiceAccount
+        namespace: kubernetes-dashboard
+        name: admin-user
+    - name: Apply ClusterRoleBinding YAML
+      command: kubectl apply -f kube_dasboard_role_binding.yaml
+    - name: Create Kubernetes Secret
+      command: kubectl apply -f kube_dasboard_role_secret.yaml
+    - name: Get Secret information
+      k8s_info:
+        api_version: v1
+        kind: Secret
+        name: admin-user
+        namespace: kubernetes-dashboard
+      register: secret_info
+    - name: Print decoded token value
+      debug:
+        msg: "{{ secret_info.resources[0].data.token | b64decode }}"

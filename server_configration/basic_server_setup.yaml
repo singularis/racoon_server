@@ -121,6 +121,10 @@
       pip:
         name: ansible-lint
         state: present
+    - name: Install pip-kuberentes
+      pip:
+        name: kubernetes
+        state: present
     - name: download sources chrome
       get_url: url=https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb dest=/tmp/google-chrome-stable_current_amd64.deb
     - name: Install chrome
