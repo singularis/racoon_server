@@ -3,7 +3,7 @@
   hosts: localhost
   connection: local
   vars_files:
-    - vars.yaml
+    - ../../vars.yaml
   tasks:
     - name: Install openshift Python module
       pip:
@@ -19,11 +19,6 @@
         kind: Namespace
         name: "{{ k8s_dashboard_namespace }}"
         state: present
-    - name: Remove Kubernetes Dashboard
-      kubernetes.core.helm:
-        namespace: "{{ k8s_dashboard_namespace }}"
-        release_name: kubernetes-dashboar
-        state: absent
     - name: Install Kubernetes Dashboard
       shell: |
         helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --namespace kubernetes-dashboard
