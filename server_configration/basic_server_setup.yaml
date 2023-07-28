@@ -117,9 +117,19 @@
       apt:
         name: xvfb
         state: present
+    - name: Setup node
+      apt:
+        name:
+          - nodejs 
+          - npm
+        state: present
     - name: Install ansible-lint
       pip:
         name: ansible-lint
+        state: present
+    - name: Install forever
+      npm:
+        name: forever
         state: present
     - name: Install pip-kuberentes
       pip:
