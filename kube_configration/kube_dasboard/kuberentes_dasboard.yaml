@@ -4,9 +4,12 @@
   connection: local
   vars_files:
     - ../../vars.yaml
+  vars:
+    helm_chart_namespace: "{{ vars.all.vars.ssl_namespace }}"
+
   tasks:
     - name: Install openshift Python module
-      pip:
+      ansible.builtin.pip:
         name: openshift
         state: present
     - name: Add stable Helm repository
@@ -14,19 +17,19 @@
         name: kubernetes-dashboard
         repo_url: https://kubernetes.github.io/dashboard/
     - name: Create Kubernetes Dashboard namespace
-      ansible.builtin.k8s:
+      kubernetes.core.k8s:
         api_version: v1
         kind: Namespace
-        name: "{{ k8s_dashboard_namespace }}"
+        name: "{{ helm_chart_namespace }}"
         state: present
     - name: Install Kubernetes Dashboard
       shell: |
-        helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --namespace kubernetes-dashboard
+        helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --namespace {{ helm_chart_namespace }}
     - name: Create Kubernetes ServiceAccount
       k8s:
         api_version: v1
         kind: ServiceAccount
-        namespace: kubernetes-dashboard
+        namespace: "{{ helm_chart_namespace }}"
         name: admin-user
     - name: Apply ClusterRoleBinding YAML
       command: kubectl apply -f kube_dasboard_role_binding.yaml
@@ -37,7 +40,7 @@
         api_version: v1
         kind: Secret
         name: admin-user
-        namespace: kubernetes-dashboard
+        namespace: "{{ helm_chart_namespace }}"
       register: secret_info
     - name: Print decoded token value
       debug:
