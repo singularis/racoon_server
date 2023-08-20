@@ -27,7 +27,136 @@
       community.kubernetes.helm_repository:
         name: "{{ helm_chart_repo }}"
         repo_url: "{{ helm_chart_repo_url }}"
-
+    - name: PV data-harbor-redis-0
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: data-harbor-redis-0
+          spec:
+            capacity:
+              storage: 1Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            local:
+              path: /other/harbor
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "local-node"
+    - name: PV data-harbor-trivy-0
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: data-harbor-trivy-0
+          spec:
+            capacity:
+              storage: 5Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            local:
+              path: /other/harbor
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "local-node"
+    - name: PV database-data-harbor-database-0
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: database-data-harbor-database-0
+          spec:
+            capacity:
+              storage: 1Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            local:
+              path: /other/harbor
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "local-node"
+    - name: PV harbor-jobservice
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: harbor-jobservice
+          spec:
+            capacity:
+              storage: 1Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            local:
+              path: /other/harbor
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "local-node"
+    - name: PV harbor-registry
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: harbor-registry
+          spec:
+            capacity:
+              storage: 5Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            local:
+              path: /other/harbor
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "local-node"
     - name: Install harbor Helm chart
       community.kubernetes.helm:
         release_name: "{{ helm_chart_release_name }}"
@@ -35,3 +164,18 @@
         namespace: "{{ helm_chart_namespace }}"
         state: present
         wait: true
+        release_values:
+          persistence:
+            resourcePolicy: ""
+            persistentVolumeClaim:
+              registry:
+                storageClass: "local"
+              jobservice:
+                jobLog:
+                  storageClass: "local"
+              database:
+                storageClass: "local"
+              redis:
+                storageClass: "local"
+              trivy:
+                storageClass: "local"
