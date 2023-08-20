@@ -1,0 +1,16 @@
+---
+- name: Start Rancher Server Container
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: Start Rancher Server Container
+      community.docker.docker_container:
+        name: rancher-server
+        image: rancher/rancher
+        privileged: true
+        ports:
+          - "80:80"
+          - "443:443"
+        restart_policy: unless-stopped
+        detach: true
