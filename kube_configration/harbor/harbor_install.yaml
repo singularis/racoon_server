@@ -96,7 +96,7 @@
             persistentVolumeReclaimPolicy: Retain
             storageClassName: local
             local:
-              path: /other/harbor
+              path: /var/lib/postgresql/data
             nodeAffinity:
               required:
                 nodeSelectorTerms:
