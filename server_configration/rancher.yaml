@@ -9,8 +9,9 @@
         name: rancher-server
         image: rancher/rancher
         privileged: true
-        ports:
-          - "80:80"
-          - "443:443"
+        network_mode: host
         restart_policy: unless-stopped
         detach: true
+        volumes:
+          - /other:/other
+          - /other_hdd:/other_hdd

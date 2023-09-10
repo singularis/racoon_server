@@ -179,3 +179,17 @@
                 storageClass: "local"
               trivy:
                 storageClass: "local"
+          expose:
+            nodePort:
+              name: "192.168.0.10"
+          harborAdminPassword: "{{ vars.all.vars.harbor.admin_password }}"
+          chartmuseum:
+            enabled: false
+          clair:
+            enabled: false
+          notary:
+            enabled: false
+          trivy:
+            enabled: false
+          jobservice:
+            jobLogger: stdout
