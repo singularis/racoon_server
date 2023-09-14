@@ -1,0 +1,55 @@
+---
+- name: Install Kubernetes on Ubuntu
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Update apt package cache
+      apt:
+        update_cache: true
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: true
+
+    - name: Install required packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+
+    - name: Download Kubernetes APT key and save it to the keyring
+      command: "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg"
+
+    - name: Add Kubernetes APT repository
+      shell: echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+
+    - name: Install Kubernetes packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Mark Kubernetes packages on hold
+      apt:
+        name: "{{ item }}"
+        state: hold
+      with_items:
+        - kubelet
+        - kubeadm
+        - kubectl
+    - name: Initialize the Kubernetes cluster with pod network CIDR
+      command: kubeadm init --config ./kubeadm-config.yaml
+      register: kubeadm_output
+      ignore_errors: yes
+    - name: Deploy Flannel using kubectl
+      command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml

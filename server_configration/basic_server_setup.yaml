@@ -165,23 +165,3 @@
         name: docker
         state: started
         enabled: yes
-    - name: Start Minikube
-      become: no
-      shell: |
-        minikube start --driver docker
-    - name: Create systemd unit file
-      template:
-        src: minikube.service.j2
-        dest: /etc/systemd/system/minikube.service
-        owner: root
-        group: root
-        mode: 0644
-    - name: Reload systemd daemon
-      shell: |
-        systemctl daemon-reload
-    - name: Start Minikube service
-      shell: |
-        systemctl start minikube
-    - name: Enable Minikube service
-      shell: |
-        systemctl enable minikube
