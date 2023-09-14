@@ -23,8 +23,7 @@
         name: "{{ helm_chart_namespace }}"
         state: present
     - name: Install Kubernetes Dashboard
-      shell: |
-        helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --namespace {{ helm_chart_namespace }}
+      command: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
     - name: Create Kubernetes ServiceAccount
       k8s:
         api_version: v1
@@ -35,6 +34,8 @@
       command: kubectl apply -f kube_dasboard_role_binding.yaml
     - name: Create Kubernetes Secret
       command: kubectl apply -f kube_dasboard_role_secret.yaml
+    - name: Create Kubernetes Dasbord ingress
+      command: kubectl apply -f ingress.yaml
     - name: Get Secret information
       k8s_info:
         api_version: v1

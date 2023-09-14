@@ -1,0 +1,22 @@
+---
+- hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../../vars.yaml
+  vars:
+    helm_chart_ref: rancher-alpha/rancher
+    helm_chart_repo_url: https://releases.rancher.com/server-charts/alpha
+    helm_chart_release_name: rancher-alpha
+    helm_chart_namespace: rancher
+  tasks:
+  - name: Create namespace
+    kubernetes.core.k8s:
+      api_version: v1
+      kind: Namespace
+      name: "{{ helm_chart_namespace }}"
+      state: present
+  - name: Add the Rancher Helm repository
+    shell: |
+      helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
+  - name: Install Rancher
+    command: helm install rancher rancher-stable/rancher --namespace "{{ helm_chart_namespace }}" --set hostname=rancher.my.org --set bootstrapPassword=admin

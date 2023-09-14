@@ -9,4 +9,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: admin-user
-  namespace: ssl-namespace
+  namespace: kubernetes-dashboard
