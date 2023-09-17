@@ -34,8 +34,8 @@
       command: kubectl apply -f kube_dasboard_role_binding.yaml
     - name: Create Kubernetes Secret
       command: kubectl apply -f kube_dasboard_role_secret.yaml
-    - name: Create Kubernetes Dasbord ingress
-      command: kubectl apply -f ingress.yaml
+    - name: Create Kubernetes metal-lb service 
+      command: kubectl apply -f lb.yaml
     - name: Get Secret information
       k8s_info:
         api_version: v1

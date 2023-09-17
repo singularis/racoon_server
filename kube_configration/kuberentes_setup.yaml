@@ -3,7 +3,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
-- name: Setup gitlub
-  import_playbook: ./gitlab/gitlub_install.yaml
 - name: Setup kube-dashboards
   import_playbook: ./kube_dasboard/kuberentes_dasboard.yaml
+- name: Setup metal-lb
+  import_playbook: ./meta-lb/metal_.yaml

@@ -14,6 +14,10 @@
 - name: Import basic server setup
   import_playbook: ./server_configration/basic_server_setup.yaml
 - name: Import kuberentes server setup
-  import_playbook: ./kube_configration/kuberentes_setup.yaml
+  import_playbook: ./server_configration/kuberentes.yaml
+- name: Import kuberentes server setup
+  import_playbook: ./server_configration/kubeadm-config.yaml
 - name: Import kvm setup
   import_playbook: ./server_configration/kvm_setup.yaml
+- name: Kube setup
+  import_playbook: .//kube_configration/kuberentes_setup.yaml
