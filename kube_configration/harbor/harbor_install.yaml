@@ -51,7 +51,6 @@
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Retain
             storageClassName: local
             local:
               path: /var/lib/redis
@@ -62,7 +61,7 @@
                       - key: kubernetes.io/hostname
                         operator: In
                         values:
-                          - "local-node"
+                          - "racoon"
     - name: PV data-harbor-trivy-0
       kubernetes.core.k8s:
         state: present
@@ -77,7 +76,6 @@
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Retain
             storageClassName: local
             local:
               path: /other/harbor
@@ -88,7 +86,7 @@
                       - key: kubernetes.io/hostname
                         operator: In
                         values:
-                          - "local-node"
+                          - "racoon"
     - name: PV database-data-harbor-database-0
       kubernetes.core.k8s:
         state: present
@@ -103,7 +101,6 @@
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Retain
             storageClassName: local
             local:
               path: /var/lib/postgresql/data
@@ -114,7 +111,7 @@
                       - key: kubernetes.io/hostname
                         operator: In
                         values:
-                          - "local-node"
+                          - "racoon"
     - name: PV harbor-jobservice
       kubernetes.core.k8s:
         state: present
@@ -129,7 +126,6 @@
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Retain
             storageClassName: local
             local:
               path: /other/harbor
@@ -140,7 +136,7 @@
                       - key: kubernetes.io/hostname
                         operator: In
                         values:
-                          - "local-node"
+                          - "racoon"
     - name: PV harbor-registry
       kubernetes.core.k8s:
         state: present
@@ -155,7 +151,6 @@
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Retain
             storageClassName: local
             local:
               path: /other/harbor
@@ -166,7 +161,7 @@
                       - key: kubernetes.io/hostname
                         operator: In
                         values:
-                          - "local-node"
+                          - "racoon"
     - name: Install harbor Helm chart
       community.kubernetes.helm:
         release_name: "{{ helm_chart_release_name }}"
@@ -194,7 +189,7 @@
                 storageClass: "local"
           expose:
             nodePort:
-              name: "192.168.0.10"
+              name: "192.168.0.11"
           harborAdminPassword: "{{ vars.all.vars.harbor.admin_password }}"
           chartmuseum:
             enabled: false
