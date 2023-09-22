@@ -191,16 +191,12 @@
                 storageClass: "local"
           expose:
             type: loadBalancer
-            ports:
-              httpPort: 80
             tls:
               enabled: false
-              auto:
-                commonName: "harbor"
             loadBalancer:
               ip: "192.168.0.10"
           harborAdminPassword: "{{ vars.all.vars.harbor.admin_password }}"
-          externalURL: http://harbor.singularis.work
+          externalURL: http://192.168.0.10/
           chartmuseum:
             enabled: false
           clair:
