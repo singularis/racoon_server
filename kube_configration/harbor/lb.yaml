@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: harbor-metal-ln
+  namespace: harbor
+spec:
+  ports:
+  - port: 447
+    targetPort: 8080
+  selector:
+    app: harbor
+    component: portal
+  type: LoadBalancer

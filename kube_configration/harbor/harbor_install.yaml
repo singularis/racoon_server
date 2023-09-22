@@ -170,7 +170,9 @@
         state: present
         wait: true
         release_values:
+          logLevel: "debug"
           persistence:
+            enabled: "false"
             resourcePolicy: ""
             persistentVolumeClaim:
               registry:
@@ -188,9 +190,17 @@
               trivy:
                 storageClass: "local"
           expose:
-            nodePort:
-              name: "192.168.0.11"
-          harborAdminPassword: "{{ vars.all.vars.harbor.admin_password }}"
+            type: loadBalancer
+            ports:
+              httpPort: 80
+            tls:
+              enabled: false
+              auto:
+                commonName: "harbor"
+            loadBalancer:
+              ip: "192.168.0.10"
+          # harborAdminPassword: "{{ vars.all.vars.harbor.admin_password }}"
+          externalURL: http://harbor
           chartmuseum:
             enabled: false
           clair:
@@ -199,5 +209,7 @@
             enabled: false
           trivy:
             enabled: false
+            ignoreUnfixed: true
+            insecure: true
           jobservice:
             jobLogger: stdout
