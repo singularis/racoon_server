@@ -20,4 +20,6 @@
 - name: Import kvm setup
   import_playbook: ./server_configration/kvm_setup.yaml
 - name: Kube setup
-  import_playbook: .//kube_configration/kuberentes_setup.yaml
+  import_playbook: ./kube_configration/kuberentes_setup.yaml
+- name: Workload setup
+  import_playbook: ./workload/workload_setup.yaml

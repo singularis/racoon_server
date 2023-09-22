@@ -6,4 +6,7 @@
 - name: Setup kube-dashboards
   import_playbook: ./kube_dasboard/kuberentes_dasboard.yaml
 - name: Setup metal-lb
-  import_playbook: ./meta-lb/metal_.yaml
+  import_playbook: ./meta-lb/metal.yaml
+- name: Setup metal-lb
+  import_playbook: ./harbor/harbor_install.yaml
+  
