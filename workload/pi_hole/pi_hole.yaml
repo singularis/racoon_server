@@ -1,0 +1,69 @@
+---
+- name: Install harbor Helm Chart
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    helm_chart_repo: mojo2600
+    helm_chart_repo_url: https://mojo2600.github.io/pihole-kubernetes/
+    helm_chart_ref: mojo2600/pihole
+    helm_chart_release_name: pihole
+    helm_chart_namespace: "{{ vars.all.vars.pi_hole.namespace }}"
+  tasks:
+    - name: Print imported variables
+      ansible.builtin.debug:
+        var: vars.all.vars.harbor
+    - name: Create namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ helm_chart_namespace }}"
+        state: present
+    - name: Add Helm chart repository
+      community.kubernetes.helm_repository:
+        name: "{{ helm_chart_repo }}"
+        repo_url: "{{ helm_chart_repo_url }}"
+    - name: PV data-harbor-redis-0
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: pihole
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            capacity:
+              storage: 500Mi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            local:
+              path: /var/lib/pihole
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+    - name: Install harbor Helm chart
+      community.kubernetes.helm:
+        name: "{{ helm_chart_release_name }}"
+        chart_ref: "{{ helm_chart_ref }}"
+        namespace: "{{ helm_chart_namespace }}"
+        state: present
+        wait: true
+        release_values:
+          persistentVolumeClaim:
+            enabled: true
+          serviceWeb:
+            loadBalancerIP: 192.168.0.12
+            type: LoadBalancer
+          serviceDns:
+            loadBalancerIP: 192.168.0.13
+            type: LoadBalancer
