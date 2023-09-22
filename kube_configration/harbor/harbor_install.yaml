@@ -199,8 +199,8 @@
                 commonName: "harbor"
             loadBalancer:
               ip: "192.168.0.10"
-          # harborAdminPassword: "{{ vars.all.vars.harbor.admin_password }}"
-          externalURL: http://harbor
+          harborAdminPassword: "{{ vars.all.vars.harbor.admin_password }}"
+          externalURL: http://harbor.singularis.work
           chartmuseum:
             enabled: false
           clair:
