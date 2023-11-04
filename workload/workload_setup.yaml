@@ -7,3 +7,5 @@
   import_playbook: ./pi_hole/pi_hole.yaml
 - name: Setup gphoto
   import_playbook: ./gphoto/gphoto.yaml
+- name: Setup nexcloud
+  import_playbook: ./nexcloud/nextcloud.yaml
