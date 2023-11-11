@@ -1,0 +1,76 @@
+---
+- name: Install Prometheus Operator from OperatorHub.io
+  hosts: localhost
+  become: no
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    namespace: "{{ vars.all.vars.prometheus.namespace }}"
+    loadBalancerIP: "{{ vars.all.vars.prometheus.loadBalancerIP }}"
+
+  tasks:
+    - name: Check if OLM is already installed
+      kubernetes.core.k8s_info:
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: "clusterserviceversions.operators.coreos.com"
+      register: olm_check
+      ignore_errors: yes
+
+    - name: Install Operator Lifecycle Manager (OLM) if not present
+      shell: |
+        curl -sL https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.26.0/install.sh | bash -s v0.26.0
+      args:
+        executable: /bin/bash
+      when: olm_check.resources | length == 0
+
+    - name: Create Namespace for Prometheus Operator
+      kubernetes.core.k8s:
+        name: "{{ namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Apply Prometheus Operator manifest
+      shell: kubectl apply -f https://operatorhub.io/install/prometheus.yaml
+
+    - name: Verify Prometheus Operator Deployment
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: operators
+        label_selectors:
+          - "app.kubernetes.io/name=prometheus-operator"
+      register: prometheus_operator_deployment
+      until: prometheus_operator_deployment.resources | length > 0
+      retries: 5
+      delay: 10
+      ignore_errors: yes
+
+    - name: Check if Prometheus Operator is deployed
+      fail:
+        msg: "Prometheus Operator deployment not found"
+      when:
+        - prometheus_operator_deployment is defined
+        - "'resources' not in prometheus_operator_deployment or prometheus_operator_deployment.resources | length == 0"
+    - name: Deploy Prometheus Instance
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: monitoring.coreos.com/v1
+          kind: Prometheus
+          metadata:
+            name: prometheus
+            namespace: "{{ namespace }}"
+          spec:
+            replicas: 1
+            resources:
+              requests:
+                memory: 400Mi
+                cpu: 200m
+            enableAdminAPI: true
+            service:
+              type: LoadBalancer
+              loadBalancerIP: "{{ loadBalancerIP }}"

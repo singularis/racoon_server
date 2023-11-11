@@ -1,5 +1,5 @@
 ---
-- name: "Main file server configuration"
+- name: "Main file workload configuration"
   hosts: localhost
   connection: local
   gather_facts: false

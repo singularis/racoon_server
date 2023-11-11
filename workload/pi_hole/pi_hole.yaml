@@ -11,7 +11,8 @@
     helm_chart_repo_url: https://mojo2600.github.io/pihole-kubernetes/
     helm_chart_ref: mojo2600/pihole
     helm_chart_release_name: pihole
-    helm_chart_namespace: "{{ vars.all.vars.pi_hole.namespace }}"
+    serviceWebIP: "{{ vars.all.vars.pi_hole.serviceWebIP }}"
+    serviceDnsIP: "{{ vars.all.vars.pi_hole.serviceDnsIP }}"
   tasks:
     - name: Print imported variables
       ansible.builtin.debug:
@@ -62,8 +63,8 @@
           persistentVolumeClaim:
             enabled: true
           serviceWeb:
-            loadBalancerIP: 192.168.0.12
+            loadBalancerIP: "{{ serviceWebIP }}"
             type: LoadBalancer
           serviceDns:
-            loadBalancerIP: 192.168.0.13
+            loadBalancerIP: "{{ serviceDnsIP }}"
             type: LoadBalancer

@@ -1,0 +1,7 @@
+---
+- name: "Main file for monitoring configuration"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+- name: Setup pi_hole
+  import_playbook: ./prometheus_operator/prometheus.yaml
