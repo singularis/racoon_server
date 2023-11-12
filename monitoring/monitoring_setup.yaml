@@ -3,5 +3,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
-- name: Setup pi_hole
+- name: Setup prometheus
   import_playbook: ./prometheus_operator/prometheus.yaml
+- name: Setup grafana
+  import_playbook: ./grafana_operator/grafana.yaml
