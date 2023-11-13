@@ -94,3 +94,33 @@
                   app: gphoto-flask
               endpoints:
                 - port: gphoto-flask
+    - name: Deploy Prometheus role
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          metadata:
+            namespace: monitoring
+            name: monitoring-role
+          rules:
+            - apiGroups: [ "" ]
+              resources: [ "pods", "services", "endpoints" ]
+              verbs: [ "get", "list", "watch" ]
+    - name: Deploy Prometheus rolle binding
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: monitoring-role-binding
+            namespace: monitoring
+          subjects:
+            - kind: ServiceAccount
+              name: default
+              namespace: monitoring
+          roleRef:
+            kind: Role
+            name: monitoring-role
+            apiGroup: rbac.authorization.k8s.io
