@@ -74,3 +74,23 @@
             service:
               type: LoadBalancer
               loadBalancerIP: "{{ loadBalancerIP }}"
+            serviceMonitorSelector:
+              matchLabels:
+                app: gphoto-flask-prometheus
+    - name: Deploy Prometheus gPhoto monitoring
+      kubernetes.core.k8s:
+        state: present
+        definition:
+            apiVersion: monitoring.coreos.com/v1
+            kind: ServiceMonitor
+            metadata:
+              name: flask-app-monitor
+              namespace: "{{ namespace }}"
+              labels:
+                app: gphoto-flask-prometheus
+            spec:
+              selector:
+                matchLabels:
+                  app: gphoto-flask
+              endpoints:
+                - port: gphoto-flask

@@ -36,6 +36,7 @@ spec:
   ports:
   - port: 448
     targetPort: 5000
+    name: gphoto-flask
   selector:
     app: gphoto-flask
   type: LoadBalancer
