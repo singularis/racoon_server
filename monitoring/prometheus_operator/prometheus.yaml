@@ -94,6 +94,24 @@
                   app: gphoto-flask
               endpoints:
                 - port: gphoto-flask
+    - name: Deploy Prometheus nextcloud monitoring
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: monitoring.coreos.com/v1
+          kind: ServiceMonitor
+          metadata:
+            name: nextcloud-app-monitor
+            namespace: "{{ namespace }}"
+            labels:
+              app: nextcloud-prometheus
+          spec:
+            selector:
+              matchLabels:
+                app.kubernetes.io/name: nextcloud
+            endpoints:
+              - port: http
+                path: /metrics
     - name: Deploy Prometheus role
       kubernetes.core.k8s:
         state: present
