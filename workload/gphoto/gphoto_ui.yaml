@@ -15,10 +15,11 @@ spec:
     spec:
       containers:
         - name: gphoto-flask
-          image: singularis314/gphoto:0.2
+          image: singularis314/gphoto:0.3
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
+              name: gphoto-flask
           volumeMounts:
             - name: gphoto-pvc
               mountPath: /app/static/
@@ -40,6 +41,21 @@ spec:
   selector:
     app: gphoto-flask
   type: LoadBalancer
+---
+# Prometheus LB
+apiVersion: v1
+kind: Service
+metadata:
+  name: gphoto-promethues
+  namespace: gphoto
+  labels:
+    app: gphoto-flask
+spec:
+  ports:
+    - port: 5000
+      name: gphoto-flask
+  selector:
+    app: gphoto-flask
 ---
 apiVersion: v1
 kind: PersistentVolume

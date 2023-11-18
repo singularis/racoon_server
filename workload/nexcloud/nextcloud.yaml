@@ -69,7 +69,7 @@
             resources:
               requests:
                 storage: "{{ vars.all.vars.nextcloud.volume_size }}"
-    - name: Install harbor Helm chart
+    - name: Install nexcloud Helm chart
       community.kubernetes.helm:
         name: "{{ helm_chart_release_name }}"
         chart_ref: "{{ helm_chart_ref }}"
@@ -86,3 +86,5 @@
             loadBalancerIP: "{{ vars.all.vars.nextcloud.loadBalancerIP }}"
           nextcloud:
             password: "{{ vars.all.vars.nextcloud.password }}"
+          metrics:
+            enabled: true
