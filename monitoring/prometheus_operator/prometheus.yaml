@@ -85,7 +85,7 @@
             kind: ServiceMonitor
             metadata:
               name: flask-app-monitor
-              namespace: "{{ namespace }}"
+              namespace: gphoto
               labels:
                 app: gphoto-flask-prometheus
             spec:
@@ -94,6 +94,8 @@
                   app: gphoto-flask
               endpoints:
                 - port: gphoto-flask
+                  interval: 30s
+                  scheme: http
     - name: Deploy Prometheus nextcloud monitoring
       kubernetes.core.k8s:
         state: present
@@ -141,4 +143,37 @@
           roleRef:
             kind: Role
             name: monitoring-role
+            apiGroup: rbac.authorization.k8s.io
+    - name: Deploy Prometheus cluster role
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          metadata:
+            name: prometheus
+          rules:
+            - apiGroups: [ "" ]
+              resources:
+                - nodes
+                - nodes/metrics
+                - services
+                - endpoints
+                - pods
+              verbs: [ "get", "list", "watch" ]
+    - name: Deploy Prometheus cluster role binding
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: prometheus
+          subjects:
+            - kind: ServiceAccount
+              name: default
+              namespace: monitoring
+          roleRef:
+            kind: ClusterRole
+            name: prometheus
             apiGroup: rbac.authorization.k8s.io
