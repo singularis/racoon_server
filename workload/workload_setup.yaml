@@ -9,3 +9,5 @@
   import_playbook: ./gphoto/gphoto.yaml
 - name: Setup nexcloud
   import_playbook: ./nexcloud/nextcloud.yaml
+- name: Setup samba
+  import_playbook: ./samba/samba.yaml

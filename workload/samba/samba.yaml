@@ -1,0 +1,185 @@
+---
+- name: Install Samba
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    namespace: "{{ vars.all.vars.samba.namespace }}"
+    loadBalancerIP: "{{ vars.all.vars.samba.loadBalancerIP }}"
+    password: "{{ vars.all.vars.samba.password }}"
+    user: "{{ vars.all.vars.samba.user }}"
+
+  tasks:
+    - name: Ensure /other_hdd/samba directory exists
+      ansible.builtin.file:
+        path: /other_hdd/samba
+        state: directory
+        mode: '0755'
+    - name: Create Namespace for Samba
+      kubernetes.core.k8s:
+        name: "{{ namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+    - name: Create Persistent Volume
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: samba-timemachine-pv
+            namespace: "{{ namespace }}"
+          spec:
+            capacity:
+              storage: 1000Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteMany
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local-storage
+            local:
+              path: /other_hdd/samba
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create Persistent Volume Claim
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: samba-timemachine-pvc
+            namespace: "{{ namespace }}"
+          spec:
+            accessModes:
+              - ReadWriteMany
+            storageClassName: local-storage
+            resources:
+              requests:
+                storage: 1000Gi
+
+    - name: Create Samba Data ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: samba-data-config
+            namespace: "{{ namespace }}"
+          data:
+            config.yml: |
+              auth:
+                - user: {{ user }}
+                  group: {{ user }}
+                  uid: 1000
+                  gid: 1000
+                  password: {{ password }}
+              global:
+                - "vfs objects = fruit streams_xattr"
+                - "fruit:metadata = stream"
+                - "fruit:model = MacSamba"
+                - "fruit:posix_rename = yes"
+                - "fruit:veto_appledouble = no"
+                - "fruit:nfs_aces = no"
+                - "fruit:wipe_intentionally_left_blank_rfork = yes"
+                - "fruit:delete_empty_adfiles = yes"
+              share:
+                - name: timemachine
+                  path: /samba/timemachine
+                  browsable: yes
+                  readonly: no
+                  guestok: no
+                  validusers: {{ user }}
+                  writelist: {{ user }}
+                  veto: no
+                  hidefiles: /_*/
+
+    - name: Create Samba Deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: samba-timemachine-deployment
+            namespace: "{{ namespace }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: samba-timemachine
+            template:
+              metadata:
+                labels:
+                  app: samba-timemachine
+              spec:
+                containers:
+                  - name: samba
+                    image: crazymax/samba
+                    env:
+                      - name: SAMBA_LOG_LEVEL
+                        value: "5"
+                    ports:
+                      - containerPort: 139
+                      - containerPort: 445
+                    volumeMounts:
+                      - mountPath: "/data/config.yml"
+                        name: samba-data-config
+                        subPath: config.yml
+                      - mountPath: "/samba/timemachine/"
+                        name: samba-timemachine-storage
+                volumes:
+                  - name: samba-timemachine-storage
+                    persistentVolumeClaim:
+                      claimName: samba-timemachine-pvc
+                  - name: samba-data-config
+                    configMap:
+                      name: samba-data-config
+
+    - name: Create Samba Service
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: samba-timemachine-service
+            namespace: "{{ namespace }}"
+          spec:
+            selector:
+              app: samba-timemachine
+            ports:
+              - name: smb
+                protocol: TCP
+                port: 139
+                targetPort: 139
+              - name: smb-445
+                protocol: TCP
+                port: 445
+                targetPort: 445
+            type: LoadBalancer
+            loadBalancerIP: "{{ loadBalancerIP }}"
+    - name: Restarting Samba Time Machine Deployment
+      kubernetes.core.k8s:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: "{{ namespace }}"
+        name: samba-timemachine-deployment
+        definition:
+          spec:
+            template:
+              metadata:
+                annotations:
+                  ansible/restart: "{{ lookup('pipe','date +%s') }}"
