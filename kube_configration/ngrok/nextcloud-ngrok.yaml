@@ -1,0 +1,48 @@
+---
+- name: Configure Ngrok Ingress for a Kubernetes Cluster
+  hosts: localhost
+  gather_facts: no
+
+  vars_files:
+    - ../../vars.yaml
+
+  tasks:
+    - name: Create Service for Ngrok-Nextcloud
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ngrok-nextcloud
+            namespace: nextcloud
+          spec:
+            ports:
+              - name: http
+                port: 80
+                targetPort: 80
+            selector:
+              app.kubernetes.io/name: nextcloud
+
+    - name: Create Ngrok Ingress for Nextcloud
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: nextcloud-ngrok
+            namespace: nextcloud
+          spec:
+            ingressClassName: ngrok
+            rules:
+              - host: "{{ vars.all.vars.ngrok.NGROK_DOMAIN  }}"
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: ngrok-nextcloud
+                          port:
+                            number: 80

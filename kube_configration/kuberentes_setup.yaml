@@ -9,4 +9,5 @@
   import_playbook: ./meta-lb/metal.yaml
 - name: Setup harbor
   import_playbook: ./harbor/harbor_install.yaml
-  
+- name: Setup ngrok
+  import_playbook: ./ngrok/ngrok.yaml
