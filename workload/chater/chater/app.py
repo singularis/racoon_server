@@ -42,6 +42,7 @@ def before_request():
             last_activity = datetime.strptime(last_activity_str, '%Y-%m-%d %H:%M:%S')
             if datetime.now() - last_activity > timedelta(hours=1):
                 session.pop('logged_in', None)
+                logging.info('logged out due to inactivity: %s', last_activity_str)
                 flash('You have been logged out due to inactivity.')
                 return redirect(url_for('login'))
 
@@ -53,18 +54,21 @@ def login():
     global LAST_FAILED_ATTEMPT_TIME
 
     if LAST_FAILED_ATTEMPT_TIME and (datetime.now() - LAST_FAILED_ATTEMPT_TIME) < timedelta(seconds=30):
+        logging.warning('Too many failed attempts')
         flash('Too many failed attempts. Please try again later.')
         return redirect(url_for('wait'))
     else:
         form = LoginForm()
         if form.validate_on_submit():
             if form.username.data == USERNAME and check_password_hash(PASSWORD_HASH, form.password.data):
+                logging.info('Successful login by user: %s', form.username.data)
                 # if form.username.data == USERNAME and "test" == form.password.data:
                 session['logged_in'] = True
                 return redirect(url_for('chater'))
             else:
                 LAST_FAILED_ATTEMPT_TIME = datetime.now()
-                flash('Wrong password', 'error')
+                logging.warning('Failed login attempt for user: %s', form.username.data)
+            flash('Wrong password', 'error')
         return render_template('login.html', form=form)
 
 
@@ -105,18 +109,21 @@ def chater():
             return render_template('chater.html', responses=session['responses'])
         return render_template('chater.html', responses=session.get('responses', []))
     else:
+        logging.warning('Unauthorized chater access attempt')
         flash('You need to log in to view this page')
         return redirect(url_for('login'))
 
 
 @app.route('/logout')
 def logout():
+    logging.info('Logged out')
     session.pop('logged_in', None)
     return redirect(url_for('login'))
 
 
 @app.route('/wait')
 def wait():
+    logging.warning('Waiting for next login attempt')
     return render_template('wait.html')
 
 
@@ -124,4 +131,4 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logger = logging.getLogger('werkzeug')
     logger.setLevel(logging.INFO)
-app.run(host="0.0.0.0", debug=True)
+app.run(host="0.0.0.0")
