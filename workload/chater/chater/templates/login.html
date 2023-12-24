@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <title>Login</title>
+    <style>
+        /* Additional style to ensure labels float up */
+        .input-field label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            font-size: 1rem;
+            cursor: text;
+            transition: transform .2s ease-out, font-size .2s ease-out;
+            transform-origin: 0 0;
+        }
+        .input-field label.active {
+            transform: translateY(-14px) scale(.8);
+            font-size: smaller;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Login</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="input-field">
+            {{ form.username.label(class="active") }} {{ form.username() }}
+        </div>
+        <div class="input-field">
+            {{ form.password.label(class="active") }} {{ form.password() }}
+        </div>
+        <button class="btn waves-effect waves-light" type="submit">Login</button>
+    </form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<script>
+    // Initialize Materialize components
+    document.addEventListener('DOMContentLoaded', function() {
+        M.updateTextFields();
+    });
+</script>
+</body>
+</html>

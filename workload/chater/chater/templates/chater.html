@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chater</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <style>
+        .script-code {
+            white-space: pre-wrap; /* Preserves whitespace and formatting */
+            font-family: monospace;
+            background-color: #eee;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h4 class="header center-align">Postings</h4>
+    <div class="row">
+        <form class="col s12" method="POST">
+            <div class="row">
+                <div class="input-field col s12">
+                    <input id="question" type="text" name="question" class="validate">
+                    <label for="question">Placeholder for request</label>
+                </div>
+                <div class="input-field col s12">
+                    <button class="btn waves-effect waves-light blue" type="submit" name="action">POST</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% if responses %}
+    <div class="row">
+        <div class="col s12">
+            {% for entry in responses %}
+            <div class="card-panel light-blue lighten-4">
+                <span><b>Q:</b> {{ entry.question }}</span><br>
+                <pre class="script-code"><b>A:</b> {{ entry.response | safe }}</pre>
+                <pre class="script-code"><b>Full:</b> {{ entry.full | safe }}</pre>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<footer class="page-footer" style="background-color: #FFFFFF;"> <!-- Set the background color to match the page -->
+    <div class="container">
+        <div class="row">
+            <div class="col s12 center-align">
+                <a href="{{ url_for('logout') }}" class="btn waves-effect waves-light green">Logout</a>
+            </div>
+        </div>
+    </div>
+</footer>
+</body>
+</html>

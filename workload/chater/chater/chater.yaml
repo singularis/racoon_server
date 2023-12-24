@@ -1,0 +1,10 @@
+---
+- name: Deploy Kubernetes configuration files
+  hosts: localhost  # This playbook runs on the Ansible control node
+  tasks:
+    - name: Deploy chater.yaml
+      k8s:
+        definition: "{{ lookup('file', './chater_deployment.yaml') }}"
+        state: present
+      register: chater_deployment
+      when: chater_deployment is changed

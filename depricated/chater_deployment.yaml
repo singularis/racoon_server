@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chater-deployment
+  namespace: chater
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chater
+  template:
+    metadata:
+      labels:
+        app: chater
+    spec:
+      containers:
+        - name: chater
+          image: singularis314/chater:0.1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 6000
+              name: chater
+          volumeMounts:
+            - name: chater-pvc
+              mountPath: /app
+          env:
+            - name: USERNAME
+              value: "test"
+            - name: PASSWORD_HASH
+              value: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+      volumes:
+        - name: chater-pvc
+          persistentVolumeClaim:
+            claimName: chater-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chater-metal-lb
+  namespace: chater
+spec:
+  ports:
+    - port: 449
+      targetPort: 6000
+      name: chater
+  selector:
+    app: chater
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: chater-pv
+  namespace: chater
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Recycle
+  storageClassName: local-storage
+  local:
+    path: /other_hdd/chater
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - "racoon"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chater-pvc
+  namespace: chater
+spec:
+  storageClassName: local-storage
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi

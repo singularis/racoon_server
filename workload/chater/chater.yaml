@@ -1,0 +1,158 @@
+- name: Deploy Kubernetes objects for chater application
+  hosts: localhost
+  gather_facts: no
+
+  vars_files:
+    - ../../vars.yaml
+
+  tasks:
+    - name: Create chater Namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: chater
+    - name: Deploy chater Deployment
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: chater-deployment
+            namespace: chater
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: chater
+            template:
+              metadata:
+                labels:
+                  app: chater
+              spec:
+                containers:
+                  - name: chater
+                    image: singularis314/chater:0.2
+                    imagePullPolicy: Always
+                    ports:
+                      - containerPort: 5000
+                        name: chater
+                    volumeMounts:
+                      - name: chater-pvc
+                        mountPath: /app/data
+                    env:
+                      - name: USERNAME
+                        valueFrom:
+                          secretKeyRef:
+                            name: chater
+                            key: USERNAME
+                      - name: PASSWORD_HASH
+                        valueFrom:
+                          secretKeyRef:
+                            name: chater
+                            key: PASSWORD_HASH
+                      - name: OPENAI_API_KEY
+                        valueFrom:
+                          secretKeyRef:
+                            name: chater
+                            key: OPENAI_API_KEY
+                      - name: SECRET_KEY
+                        valueFrom:
+                          secretKeyRef:
+                            name: chater
+                            key: SECRET_KEY
+                volumes:
+                  - name: chater-pvc
+                    persistentVolumeClaim:
+                      claimName: chater-pvc
+
+    - name: Create chater Service
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: chater-metal-lb
+            namespace: chater
+          spec:
+            ports:
+              - port: 448
+                targetPort: 5000
+            selector:
+              app: chater
+            type: LoadBalancer
+
+    - name: Create chater PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: chater-pv
+            namespace: chater
+          spec:
+            capacity:
+              storage: 5Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteMany
+            persistentVolumeReclaimPolicy: Recycle
+            storageClassName: local-storage
+            local:
+              path: /other_hdd/chater
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create chater PersistentVolumeClaim
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: chater-pvc
+            namespace: chater
+          spec:
+            storageClassName: local-storage
+            accessModes:
+              - ReadWriteMany
+            resources:
+              requests:
+                storage: 5Gi
+    - name: Create local directory for chater
+      ansible.builtin.file:
+        path: /other_hdd/chater
+        state: directory
+        mode: '0755'
+    - name: Create secret for environment variables
+
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater
+        kind: Secret
+        name: chater
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: chater
+            namespace: chater
+          data:
+            USERNAME: "{{ vars.all.vars.chater.USER | b64encode }}"
+            PASSWORD_HASH: "{{ vars.all.vars.chater.PASSWORD | b64encode }}"
+            OPENAI_API_KEY: "{{ vars.all.vars.chater.CAPI | b64encode }}"
+            SECRET_KEY: "{{ vars.all.vars.chater.SECRET_KEY | b64encode }}"

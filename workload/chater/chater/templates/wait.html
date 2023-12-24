@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Wait</title>
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+        // JavaScript to redirect after a specified time
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                window.location.href = "{{ url_for('login') }}";
+            }, 30000); // 30 seconds
+        });
+    </script>
+    <style>
+        .center-align-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+<div class="container center-align-container">
+    <div class="row">
+        <div class="col s12 m8 offset-m2">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Login Wait</span>
+                    <p>Please wait for 30 seconds before trying again.</p>
+                </div>
+                <div class="card-action">
+                    <p>Redirecting to login...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
