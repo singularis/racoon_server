@@ -139,7 +139,6 @@
         state: directory
         mode: '0755'
     - name: Create secret for environment variables
-
       kubernetes.core.k8s:
         state: present
         namespace: chater
