@@ -7,3 +7,5 @@
   import_playbook: ./prometheus_operator/prometheus.yaml
 - name: Setup grafana
   import_playbook: ./grafana_operator/grafana.yaml
+- name: Setup elk
+  import_playbook: ./elk/elk.yaml

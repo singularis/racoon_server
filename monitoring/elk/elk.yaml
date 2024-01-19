@@ -1,0 +1,100 @@
+---
+- name: Install ELK Operator from OperatorHub.io
+  hosts: localhost
+  become: no
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    namespace: "{{ vars.all.vars.elk.namespace }}"
+    loadBalancerIP: "{{ vars.all.vars.elk.loadBalancerIP }}"
+    password: "{{ vars.all.vars.elk.password }}"
+  tasks:
+    - name: Create Namespace for Prometheus Operator
+      kubernetes.core.k8s:
+        name: "{{ namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+    - name: Apply ELK Operator manifest
+      shell: kubectl apply -f https://operatorhub.io/install/elastic-cloud-eck.yaml
+    - name: Deploy Elasticsearch
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ namespace }}"
+        definition:
+          apiVersion: elasticsearch.k8s.elastic.co/v1
+          kind: Elasticsearch
+          metadata:
+            name: elasticsearch
+          spec:
+            version: 8.12.0
+            nodeSets:
+              - name: default
+                count: 1
+                config:
+                  node.store.allow_mmap: false
+    - name: Ensure /other_hdd/elk directory exists
+      ansible.builtin.file:
+        path: /other_hdd/elk
+        state: directory
+        mode: '0755'
+    - name: Create Persistent Volume
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: elk-pv
+            namespace: "{{ namespace }}"
+          spec:
+            capacity:
+              storage: 2Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Recycle
+            storageClassName: local-storage
+            local:
+              path: /other_hdd/elk
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+    - name: Deploy Kibana
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ namespace }}"
+        definition:
+          apiVersion: kibana.k8s.elastic.co/v1
+          kind: Kibana
+          metadata:
+            name: kibana
+          spec:
+            version: 8.12.0
+            count: 1
+            elasticsearchRef:
+              name: elasticsearch
+    - name: Deploy Kibana MetaLB
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: kibana-metal-lb
+            namespace: "{{ namespace }}"
+          spec:
+            selector:
+              kibana.k8s.elastic.co/name: kibana
+            ports:
+              - protocol: TCP
+                port: 5601
+                targetPort: 5601
+            type: LoadBalancer
