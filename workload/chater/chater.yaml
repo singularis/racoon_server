@@ -65,6 +65,10 @@
                           secretKeyRef:
                             name: chater
                             key: SECRET_KEY
+                      - name: SESSION_LIFETIME
+                        value: "8"
+                      - name: MODEL
+                        value: "{{ vars.all.vars.chater.MODEL }}"
                 volumes:
                   - name: chater-pvc
                     persistentVolumeClaim:

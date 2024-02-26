@@ -18,6 +18,7 @@ LAST_FAILED_ATTEMPT_TIME = None
 # Load environment variables
 USERNAME = os.getenv('USERNAME')
 PASSWORD_HASH = os.getenv('PASSWORD_HASH')
+SESSION_LIFETIME = int(os.getenv('SESSION_LIFETIME'))
 
 
 class LoginForm(FlaskForm):
@@ -28,7 +29,7 @@ class LoginForm(FlaskForm):
 @app.before_request
 def before_request():
     session.permanent = True
-    app.permanent_session_lifetime = timedelta(hours=1)
+    app.permanent_session_lifetime = timedelta(hours=SESSION_LIFETIME)
 
     session.modified = True
     if 'logged_in' in session:
@@ -40,7 +41,7 @@ def before_request():
                 last_activity_str = last_activity_str.strftime('%Y-%m-%d %H:%M:%S')
 
             last_activity = datetime.strptime(last_activity_str, '%Y-%m-%d %H:%M:%S')
-            if datetime.now() - last_activity > timedelta(hours=1):
+            if datetime.now() - last_activity > timedelta(hours=SESSION_LIFETIME):
                 session.pop('logged_in', None)
                 logging.info('logged out due to inactivity: %s', last_activity_str)
                 flash('You have been logged out due to inactivity.')
@@ -62,7 +63,7 @@ def login():
         if form.validate_on_submit():
             if form.username.data == USERNAME and check_password_hash(PASSWORD_HASH, form.password.data):
                 logging.info('Successful login by user: %s', form.username.data)
-                # if form.username.data == USERNAME and "test" == form.password.data:
+                session.permanent = True
                 session['logged_in'] = True
                 return redirect(url_for('chater'))
             else:
@@ -105,8 +106,8 @@ def chater():
                 session['responses'] = []
             session['responses'].insert(0, {'question': question, 'response': formatted_script, 'full': json_response})
             session['responses'] = session['responses'][:10]
+            return redirect(url_for('chater'))
 
-            return render_template('chater.html', responses=session['responses'])
         return render_template('chater.html', responses=session.get('responses', []))
     else:
         logging.warning('Unauthorized chater access attempt')
