@@ -3,22 +3,7 @@
 <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <title>Login</title>
-    <style>
-        /* Additional style to ensure labels float up */
-        .input-field label {
-            position: absolute;
-            top: 0;
-            left: 0;
-            font-size: 1rem;
-            cursor: text;
-            transition: transform .2s ease-out, font-size .2s ease-out;
-            transform-origin: 0 0;
-        }
-        .input-field label.active {
-            transform: translateY(-14px) scale(.8);
-            font-size: smaller;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
 <div class="container">

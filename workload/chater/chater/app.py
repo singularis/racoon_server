@@ -114,6 +114,17 @@ def chater():
         flash('You need to log in to view this page')
         return redirect(url_for('login'))
 
+@app.route('/clear_responses', methods=['GET'])
+def clear_responses():
+    if 'logged_in' in session:
+        session['responses'] = []  # Clear the cached responses
+        flash('Responses cleared successfully')
+        return redirect(url_for('chater'))
+    else:
+        logging.warning('Unauthorized clear attempt')
+        flash('You need to log in to perform this action')
+        return redirect(url_for('login'))
+
 
 @app.route('/logout')
 def logout():
