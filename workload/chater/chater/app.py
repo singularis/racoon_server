@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, session, request
+from flask import Flask, render_template, redirect, url_for, flash, session, request, logging
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import InputRequired
@@ -7,6 +7,7 @@ from chater import chater_request
 import os
 import logging
 import json
+import sys
 from datetime import datetime, timedelta
 
 logging.basicConfig()
@@ -90,22 +91,24 @@ def chater():
                     'ruby_script', 'swift_script', 'perl_script', 'sql_script',
                     'html_script', 'css_script', 'Python_Script'
                 ]
-                script_content = None
-                for key in possible_keys:
-                    if key in response_data:
-                        script_content = response_data[key]
-                        break
-                if script_content is None:
-                    script_content = response_data
+                script_content = next((response_data[key] for key in possible_keys if key in response_data), response_data)
                 formatted_script = "\n".join(script_content) if isinstance(script_content, list) else script_content
             except json.JSONDecodeError:
                 formatted_script = json_response
 
-            # Store the formatted script
+            new_response = {'question': question, 'response': formatted_script, 'full': json_response}
+
+            # Initialize 'responses' if not in session
             if 'responses' not in session:
                 session['responses'] = []
-            session['responses'].insert(0, {'question': question, 'response': formatted_script, 'full': json_response})
-            session['responses'] = session['responses'][:10]
+
+            # Attempt to add new response, checking size constraint
+            temp_responses = [new_response] + session['responses']
+            while sys.getsizeof(temp_responses) > 4000:  # Roughly 4KB limit, adjust as needed
+                temp_responses.pop()  # Remove oldest responses until within size limit
+
+            session['responses'] = temp_responses[:10]  # Keep only the latest 10 responses
+
             return redirect(url_for('chater'))
 
         return render_template('chater.html', responses=session.get('responses', []))
