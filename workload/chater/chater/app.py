@@ -104,10 +104,10 @@ def chater():
 
             # Attempt to add new response, checking size constraint
             temp_responses = [new_response] + session['responses']
-            while sys.getsizeof(temp_responses) > 4000:  # Roughly 4KB limit, adjust as needed
+            while sys.getsizeof(temp_responses) > 3000:  # Roughly 4KB limit, adjust as needed
                 temp_responses.pop()  # Remove oldest responses until within size limit
 
-            session['responses'] = temp_responses[:10]  # Keep only the latest 10 responses
+            session['responses'] = temp_responses[:3]  # Keep only the latest 10 responses
 
             return redirect(url_for('chater'))
 
