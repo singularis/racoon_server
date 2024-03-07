@@ -32,10 +32,10 @@ body {
     color: #ffffff !important; /* Ensures links within the footer are also light for visibility */
 }
 
-/* Input fields styling */
-input[type="text"] {
+input[type="text"],
+textarea {
     color: #ffffff; /* Light text color for readability */
-    background-color: #424242; /* Darker background for input fields */
+    background-color: #424242; /* Darker background for input fields and textarea */
     border-bottom: 1px solid #ffffff; /* Light border for visibility */
 }
 
@@ -51,4 +51,22 @@ input[type="text"] {
 
 ::-ms-input-placeholder { /* Microsoft Edge */
     color: #ddd;
+}
+
+.btn.blue:hover {
+    background-color: #29b6f6 !important; /* Lighter blue for hover */
+    color: #000 !important; /* Change text color on hover */
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); /* Add a shadow for depth */
+}
+
+.btn.green:hover {
+    background-color: #2e7d32 !important; /* Lighter blue for hover */
+    color: #000 !important; /* Change text color on hover */
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); /* Add a shadow for depth */
+}
+
+.btn.clicked {
+    /* Example: change color and scale */
+    background-color: #1976d2 !important;
+    transform: scale(0.95);
 }

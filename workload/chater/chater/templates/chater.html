@@ -11,7 +11,7 @@
         <form class="col s12" method="POST">
             <div class="row">
                 <div class="input-field col s12">
-                    <input id="question" type="text" name="question" class="validate">
+                    <textarea id="question" name="question" class="materialize-textarea" autocomplete="off"></textarea>
                     <label for="question">Placeholder for request</label>
                 </div>
                 <div class="input-field col s12">
@@ -34,8 +34,8 @@
     </div>
     {% endif %}
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<script src="{{ url_for('static', filename='js/chater.js') }}"></script>
 <footer class="page-footer">
     <div class="container">
         <div class="row">
