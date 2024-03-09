@@ -69,6 +69,8 @@
                         value: "8"
                       - name: MODEL
                         value: "{{ vars.all.vars.chater.MODEL }}"
+                      - name: GCP_PROJECT_ID
+                        value: "{{ vars.all.vars.chater.GCP_PROJECT_ID }}"
                 volumes:
                   - name: chater-pvc
                     persistentVolumeClaim:
