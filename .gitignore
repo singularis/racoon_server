@@ -2,3 +2,4 @@ vars.yaml
 .idea
 __pycache__
 .uuid
+dlp.py
