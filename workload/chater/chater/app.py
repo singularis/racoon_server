@@ -79,7 +79,8 @@ def chater():
     if 'logged_in' in session:
         if request.method == 'POST':
             question = request.form['question']
-            json_response = chater_request(question)
+            chater_response = chater_request(question)
+            json_response = chater_response["response_content"]
 
             try:
                 response_data = json.loads(json_response)
@@ -96,7 +97,7 @@ def chater():
             except json.JSONDecodeError:
                 formatted_script = json_response
 
-            new_response = {'question': question, 'response': formatted_script, 'full': json_response}
+            new_response = {'question': chater_response["safe_question"], 'response': formatted_script, 'full': json_response}
 
             # Initialize 'responses' if not in session
             if 'responses' not in session:

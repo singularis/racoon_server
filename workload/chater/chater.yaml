@@ -36,7 +36,7 @@
               spec:
                 containers:
                   - name: chater
-                    image: singularis314/chater:0.2
+                    image: singularis314/chater:0.3
                     imagePullPolicy: Always
                     ports:
                       - containerPort: 5000
@@ -44,6 +44,9 @@
                     volumeMounts:
                       - name: chater-pvc
                         mountPath: /app/data
+                      - name: gcp-dlp-creds
+                        mountPath: /var/secrets/google
+                        readOnly: true
                     env:
                       - name: USERNAME
                         valueFrom:
@@ -65,6 +68,8 @@
                           secretKeyRef:
                             name: chater
                             key: SECRET_KEY
+                      - name: GOOGLE_APPLICATION_CREDENTIALS
+                        value: /var/secrets/google/service-account.json
                       - name: SESSION_LIFETIME
                         value: "8"
                       - name: MODEL
@@ -75,6 +80,9 @@
                   - name: chater-pvc
                     persistentVolumeClaim:
                       claimName: chater-pvc
+                  - name: gcp-dlp-creds
+                    secret:
+                      secretName: gcp-dlp-service-account
 
     - name: Create chater Service
       kubernetes.core.k8s:
