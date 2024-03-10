@@ -3,3 +3,4 @@ vars.yaml
 __pycache__
 .uuid
 dlp.py
+dlp-secret-auth
