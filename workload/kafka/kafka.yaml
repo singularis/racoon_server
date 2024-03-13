@@ -134,5 +134,5 @@
         state: directory
         mode: '0755'
       loop: [1, 2]
-#    - name: Create topics
-#      import_playbook: ./topics.yaml
+    - name: Create topics
+      import_playbook: ./topics.yaml
