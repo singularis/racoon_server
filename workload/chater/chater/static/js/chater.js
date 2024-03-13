@@ -12,3 +12,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+document.addEventListener('DOMContentLoaded', function() {
+    var textarea = document.getElementById('question');
+    textarea.addEventListener('keydown', function(e) {
+        // Check if Enter was pressed without Shift key
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); // Prevent the default action (inserting a new line)
+            document.querySelector('.btn[type="submit"]').click(); // Programmatically click the submit button
+        }
+    });
+});
