@@ -81,7 +81,7 @@
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Retain
+            persistentVolumeReclaimPolicy: Delete
             local:
               path: "/other/kafka/kafka-{{ item }}"
             nodeAffinity:
@@ -109,7 +109,7 @@
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Retain
+            persistentVolumeReclaimPolicy: Delete
             local:
               path: "/other/zookeeper/zookeeper-{{ item }}"
             nodeAffinity:
@@ -134,5 +134,3 @@
         state: directory
         mode: '0755'
       loop: [1, 2]
-    - name: Create topics
-      import_playbook: ./topics.yaml
