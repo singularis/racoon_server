@@ -55,6 +55,49 @@
                 storage: 5Gi
             volumeMode: Filesystem
 
+    - name: Create PersistentVolume
+      k8s:
+        namespace: development
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: ubuntu-ssh-pv
+          spec:
+            capacity:
+              storage: 100M
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Delete
+            local:
+              path: "/other/development/ubuntu/ssh"
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create PersistentVolumeClaim
+      k8s:
+        namespace: development
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: ubuntu-ssh-pvc
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100M
+            volumeMode: Filesystem
+
+
     - name: Start Ubuntu container as a Deployment
       k8s:
         namespace: development
@@ -85,12 +128,17 @@
                     ports:
                       - containerPort: 22
                     volumeMounts:
-                      - mountPath: "/root/development"
+                      - mountPath: "/home/dante/development"
                         name: ubuntu-volume
+                      - mountPath: "/home/dante/.ssh"
+                        name: ubuntu-ssh-volume
                 volumes:
                   - name: ubuntu-volume
                     persistentVolumeClaim:
                       claimName: ubuntu-pvc
+                  - name: ubuntu-ssh-volume
+                    persistentVolumeClaim:
+                      claimName: ubuntu-ssh-pvc
 
     - name: Create LoadBalancer Service for Ubuntu container
       k8s:
@@ -113,5 +161,10 @@
     - name: Ensure /other/development/ubuntu directory exists
       ansible.builtin.file:
         path: /other/development/ubuntu
+        state: directory
+        mode: '0755'
+    - name: Ensure /other/development/ubuntu/ssh directory exists
+      ansible.builtin.file:
+        path: /other/development/ubuntu/ssh
         state: directory
         mode: '0755'
