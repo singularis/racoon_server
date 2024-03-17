@@ -4,16 +4,20 @@ import logging
 import re
 from dlp import INFO_TYPES
 from google.cloud import dlp_v2
-from google.cloud.dlp_v2.types import DeidentifyConfig, InfoTypeTransformations, PrimitiveTransformation, \
-    ReplaceValueConfig
+from google.cloud.dlp_v2.types import (
+    DeidentifyConfig,
+    InfoTypeTransformations,
+    PrimitiveTransformation,
+    ReplaceValueConfig,
+)
 
-MODEL = os.getenv('MODEL')
+MODEL = os.getenv("MODEL")
 client = OpenAI()
 
 
 def inspect_and_redact(question: str) -> str:
     dlp = dlp_v2.DlpServiceClient()
-    project_id = os.getenv('GCP_PROJECT_ID')
+    project_id = os.getenv("GCP_PROJECT_ID")
 
     item = {"value": question}
 
@@ -25,10 +29,12 @@ def inspect_and_redact(question: str) -> str:
 
     # Define the info type transformations
     info_type_transformations = InfoTypeTransformations(
-        transformations=[{
-            "info_types": info_types,
-            "primitive_transformation": primitive_transformation
-        }]
+        transformations=[
+            {
+                "info_types": info_types,
+                "primitive_transformation": primitive_transformation,
+            }
+        ]
     )
     deidentify_config = DeidentifyConfig(
         info_type_transformations=info_type_transformations
@@ -54,13 +60,21 @@ def chater_request(question) -> dict[str, str]:
         model=MODEL,
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
-            {"role": "user", "content": safe_question}
-        ]
+            {
+                "role": "system",
+                "content": "You are a helpful assistant designed to output JSON.",
+            },
+            {"role": "user", "content": safe_question},
+        ],
     )
     response_content = response.choices[0].message.content
-    response_content = re.sub(r'\bai\b|\bml\b|\bchatgpt\b|\bopenai\b',
-                              lambda match: "vault" if match.group(0).lower() in ['ai', 'ml', 'chatgpt'] else "TM",
-                              response_content, flags=re.IGNORECASE)
+    response_content = re.sub(
+        r"\bai\b|\bml\b|\bchatgpt\b|\bopenai\b",
+        lambda match: "vault"
+        if match.group(0).lower() in ["ai", "ml", "chatgpt"]
+        else "TM",
+        response_content,
+        flags=re.IGNORECASE,
+    )
     logging.info(f"GPT Answer {response_content}")
     return {"response_content": response_content, "safe_question": safe_question}
