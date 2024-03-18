@@ -1,0 +1,109 @@
+---
+- name: Install and Configure gramoxy Kubernetes
+  vars_files:
+    - ../../vars.yaml
+  vars:
+    domain_name: "{{ vars.all.vars.gramoxy.domain }}"
+    certificate_directory: "./certs"
+  hosts: localhost
+  tasks:
+    - name: Create the gramoxy namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: gramoxy
+        state: present
+    - name: Ensure certificate directory exists
+      ansible.builtin.file:
+        path: "{{ certificate_directory }}"
+        state: directory
+
+    - name: Generate Private Key
+      community.crypto.openssl_privatekey:
+        path: "{{ certificate_directory }}/tls.key"
+        size: 2048  # You can adjust the size as needed
+
+    - name: Generate SSL Certificate
+      community.crypto.x509_certificate:
+        path: "{{ certificate_directory }}/tls.crt"
+        privatekey_path: "{{ certificate_directory }}/tls.key"
+        provider: selfsigned
+        selfsigned_version: 3
+        selfsigned_digest: sha256
+        selfsigned_not_before: "20230101000000Z"  # Adjust as needed
+        selfsigned_not_after: "20240101000000Z"  # Adjust as needed
+
+    - name: Create or Update Kubernetes Secret for SSL Certificate
+      kubernetes.core.k8s:
+        state: present
+        namespace: gramoxy
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: nginx-ssl
+          type: kubernetes.io/tls
+          data:
+            tls.crt: "{{ lookup('file', certificate_directory + '/tls.crt') | b64encode }}"
+            tls.key: "{{ lookup('file', certificate_directory + '/tls.key') | b64encode }}"
+
+    - name: Create ConfigMap with NGINX Configuration
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: nginx-config
+            namespace: gramoxy
+          data:
+            nginx.conf: |
+              server {
+                  listen 443 ssl;
+                  ssl_certificate     /etc/nginx/ssl/tls.crt;
+                  ssl_certificate_key /etc/nginx/ssl/tls.key;
+                  location / {
+                      proxy_pass https://youtube.com/;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto $scheme;
+                  }
+              }
+    - name: Create NGINX Deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: gramoxy
+            namespace: gramoxy
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: gramoxy
+            template:
+              metadata:
+                labels:
+                  app: gramoxy
+              spec:
+                containers:
+                  - name: nginx
+                    image: nginx:latest
+                    ports:
+                      - containerPort: 443
+                    volumeMounts:
+                      - name: nginx-config-volume
+                        mountPath: /etc/nginx/conf.d
+                      - name: ssl-certs
+                        mountPath: /etc/nginx/ssl
+                        readOnly: true
+                volumes:
+                  - name: nginx-config-volume
+                    configMap:
+                      name: nginx-config
+                  - name: ssl-certs
+                    secret:
+                      secretName: nginx-ssl
