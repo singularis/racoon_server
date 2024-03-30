@@ -6,20 +6,20 @@
       kubernetes.core.k8s:
         api_version: v1
         kind: Namespace
-        name: kafka
+        name: kafka-new
         state: present
 
     - name: Install Strimzi Operator
       kubernetes.core.k8s:
         state: present
-        namespace: kafka
-        src: https://strimzi.io/install/latest?namespace=kafka
+        namespace: kafka-new
+        src: https://strimzi.io/install/latest?namespace=kafka-new
 
     - name: Wait for the Strimzi Operator to be ready
       kubernetes.core.k8s_info:
         api_version: apps/v1
         kind: Deployment
-        namespace: kafka
+        namespace: kafka-new
         name: strimzi-cluster-operator
       register: operator_status
       until: |
@@ -33,7 +33,7 @@
     - name: Deploy Kafka Cluster
       kubernetes.core.k8s:
         state: present
-        namespace: kafka
+        namespace: kafka-new
         definition:
           apiVersion: kafka.strimzi.io/v1beta2
           kind: Kafka
@@ -54,83 +54,11 @@
                 transaction.state.log.min.isr: 2
                 log.message.format.version: "2.8"
               storage:
-                type: persistent-claim
-                size: 2Gi
-                deleteClaim: false
+                type: ephemeral
             zookeeper:
               replicas: 2
               storage:
-                type: persistent-claim
-                size: 1Gi
-                deleteClaim: false
+                type: ephemeral
             entityOperator:
               topicOperator: {}
               userOperator: {}
-    - name: Create PVs for Kafka
-      kubernetes.core.k8s:
-        state: present
-        namespace: kafka
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: "kafka-pv-{{ item }}"
-          spec:
-            capacity:
-              storage: 2Gi
-            volumeMode: Filesystem
-            accessModes:
-              - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Delete
-            local:
-              path: "/other/kafka/kafka-{{ item }}"
-            nodeAffinity:
-              required:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - "racoon"
-      loop: [1, 2, 3]
-
-    - name: Create PVs for Zookeeper
-      kubernetes.core.k8s:
-        state: present
-        namespace: kafka
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: "zookeeper-pv-{{ item }}"
-          spec:
-            capacity:
-              storage: 1Gi
-            volumeMode: Filesystem
-            accessModes:
-              - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Delete
-            local:
-              path: "/other/zookeeper/zookeeper-{{ item }}"
-            nodeAffinity:
-              required:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - "racoon"
-      loop: [1, 2]
-    - name: Create directories for Kafka storage
-      ansible.builtin.file:
-        path: "/other/kafka/kafka-{{ item }}"
-        state: directory
-        mode: '0755'
-      loop: [1, 2, 3]
-
-    - name: Create directories for Zookeeper storage
-      ansible.builtin.file:
-        path: "/other/zookeeper/zookeeper-{{ item }}"
-        state: directory
-        mode: '0755'
-      loop: [1, 2]
