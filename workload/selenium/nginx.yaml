@@ -1,0 +1,85 @@
+---
+- name: Deploy NGINX reverse proxy with Basic Auth in Kubernetes
+  vars:
+    namespace: selenium
+    username: user1
+    password: securepassword
+    auth_file_name: .htpasswd
+    basic_auth_secret_name: nginx-basic-auth
+    configmap_name: nginx-config
+    selenium_service_url: "http://selenium.selenium.local.svc"
+
+  tasks:
+    - name: Create namespace
+      kubernetes.core.k8s:
+        kind: Namespace
+        name: "{{ namespace }}"
+        state: present
+
+    - name: Generate htpasswd content
+      ansible.builtin.command:
+        cmd: "htpasswd -nb {{ username }} {{ password }}"
+      register: htpasswd_content
+      changed_when: false
+
+    - name: Create Secret for Basic Auth
+      kubernetes.core.k8s:
+        kind: Secret
+        namespace: "{{ namespace }}"
+        name: "{{ basic_auth_secret_name }}"
+        string_data:
+          "{{ auth_file_name }}": "{{ htpasswd_content.stdout }}"
+        state: present
+
+    - name: Create ConfigMap for NGINX configuration
+      kubernetes.core.k8s:
+        kind: ConfigMap
+        namespace: "{{ namespace }}"
+        name: "{{ configmap_name }}"
+        data:
+          nginx.conf: |
+            server {
+                listen 80;
+                server_name _;
+
+                location / {
+                    proxy_pass {{ selenium_service_url }};
+                    auth_basic "Restricted Content";
+                    auth_basic_user_file /etc/nginx/conf.d/{{ auth_file_name }};
+                }
+            }
+
+    - name: Deploy NGINX with Basic Auth
+      kubernetes.core.k8s:
+        kind: Deployment
+        namespace: "{{ namespace }}"
+        name: nginx-proxy
+        definition:
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: nginx-proxy
+            template:
+              metadata:
+                labels:
+                  app: nginx-proxy
+              spec:
+                containers:
+                  - name: nginx
+                    image: nginx:latest
+                    ports:
+                      - containerPort: 80
+                    volumeMounts:
+                      - name: nginx-config-volume
+                        mountPath: /etc/nginx/nginx.conf
+                        subPath: nginx.conf
+                      - name: auth-volume
+                        mountPath: /etc/nginx/conf.d
+                volumes:
+                  - name: nginx-config-volume
+                    configMap:
+                      name: "{{ configmap_name }}"
+                  - name: auth-volume
+                    secret:
+                      secretName: "{{ basic_auth_secret_name }}"

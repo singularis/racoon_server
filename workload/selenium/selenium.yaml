@@ -1,0 +1,110 @@
+---
+- name: Deploy selenium/node-chrome to Kubernetes
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    namespace: "{{ vars.all.vars.selenium.namespace }}"
+    password: "{{ vars.all.vars.selenium.password }}"
+
+  tasks:
+    - name: Ensure 'selenium' namespace exists
+      kubernetes.core.k8s:
+        state: present
+        api_version: v1
+        kind: Namespace
+        name: selenium
+
+    - name: Ensure /other/selenium directory exists
+      ansible.builtin.file:
+        path: /other/selenium
+        state: directory
+        mode: '0777'
+
+    - name: Create Persistent Volume
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: selenium-pv
+            namespace: "{{ namespace }}"
+          spec:
+            capacity:
+              storage: 20Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local-storage
+            local:
+              path: /other/selenium
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create Persistent Volume Claim
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: selenium-pvc
+            namespace: "{{ namespace }}"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: local-storage
+            resources:
+              requests:
+                storage: 20Gi
+    - name: Deploy selenium/node-chrome to Kubernetes
+      kubernetes.core.k8s:
+        state: present
+        namespace: selenium
+        definition:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: selenium-node-chrome
+            namespace: selenium
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: selenium-node-chrome
+            template:
+              metadata:
+                labels:
+                  app: selenium-node-chrome
+              spec:
+                containers:
+                  - name: selenium-node-chrome
+                    image: selenium/standalone-chrome:latest
+                    env:
+                      - name: SE_VNC_PASSWORD
+                        value: "{{ password }}"
+                    volumeMounts:
+                      - name: dshm
+                        mountPath: /dev/shm
+                      - mountPath: /home/seluser/.config/google-chrome/
+                        name: selenium-pvc
+                    ports:
+                      - containerPort: 7900
+                volumes:
+                  - name: dshm
+                    emptyDir:
+                      medium: Memory
+                      sizeLimit: "10Gi"
+                  - name: selenium-pvc
+                    persistentVolumeClaim:
+                      claimName: selenium-pvc

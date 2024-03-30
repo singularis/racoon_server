@@ -17,3 +17,7 @@
   import_playbook: ./kafka/kafka.yaml
 - name: Create topics
   import_playbook: ./topics.yaml
+- name: Create gramoxy
+  import_playbook: ./gramoxy.yaml
+- name: Create selenium
+  import_playbook: ./selenium.yaml
