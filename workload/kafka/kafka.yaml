@@ -41,24 +41,98 @@
             name: kafka
           spec:
             kafka:
-              version: 3.6.1
-              replicas: 3
+              replicas: 1
               listeners:
                 - name: plain
                   port: 9092
                   type: internal
                   tls: false
+                - name: tls
+                  port: 9093
+                  type: internal
+                  tls: true
               config:
-                offsets.topic.replication.factor: 3
-                transaction.state.log.replication.factor: 3
-                transaction.state.log.min.isr: 2
-                log.message.format.version: "2.8"
+                offsets.topic.replication.factor: 1
+                transaction.state.log.replication.factor: 1
+                transaction.state.log.min.isr: 1
               storage:
-                type: ephemeral
+                type: persistent-claim
+                size: 2Gi
+                deleteClaim: true
             zookeeper:
-              replicas: 2
+              replicas: 1
               storage:
-                type: ephemeral
+                type: persistent-claim
+                size: 1Gi
+                deleteClaim: true
             entityOperator:
               topicOperator: {}
               userOperator: {}
+    - name: Create PVs for Kafka
+      kubernetes.core.k8s:
+        state: present
+        namespace: kafka
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "kafka-pv-{{ item }}"
+          spec:
+            capacity:
+              storage: 2Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Delete
+            local:
+              path: "/other/kafka/kafka-{{ item }}"
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+      loop: [1]
+
+    - name: Create PVs for Zookeeper
+      kubernetes.core.k8s:
+        state: present
+        namespace: kafka
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "zookeeper-pv-{{ item }}"
+          spec:
+            capacity:
+              storage: 1Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Delete
+            local:
+              path: "/other/zookeeper/zookeeper-{{ item }}"
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+      loop: [1]
+    - name: Create directories for Kafka storage
+      ansible.builtin.file:
+        path: "/other/kafka/kafka-{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: [1]
+
+    - name: Create directories for Zookeeper storage
+      ansible.builtin.file:
+        path: "/other/zookeeper/zookeeper-{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: [1]
