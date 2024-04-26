@@ -94,6 +94,11 @@
               server {
                   listen 4313 default_server;
                   server_name singularis.work, www.singularis.work;
+                  add_header X-Frame-Options "SAMEORIGIN";
+                  add_header X-XSS-Protection "1; mode=block";
+                  add_header X-Content-Type-Options "nosniff";
+                  add_header Referrer-Policy "no-referrer-when-downgrade";
+                  add_header Content-Security-Policy "default-src 'self' https: data: blob: 'unsafe-inline'";
                   location / {
                       proxy_pass http://selenium.selenium.svc.cluster.local:7900/;
                       auth_basic "Restricted Content";
