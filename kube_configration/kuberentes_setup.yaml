@@ -11,3 +11,7 @@
   import_playbook: ./harbor/harbor_install.yaml
 - name: Setup ngrok
   import_playbook: ./ngrok/ngrok.yaml
+- name: Setup chater-ngrok
+  import_playbook: ./ngrok/chater-ngrok.yaml
+- name: Setup selenium-ngrok
+  import_playbook: ./ngrok/selenium-ngrok.yaml

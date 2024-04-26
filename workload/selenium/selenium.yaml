@@ -108,3 +108,20 @@
                   - name: selenium-pvc
                     persistentVolumeClaim:
                       claimName: selenium-pvc
+    - name: Create Service for Selenium
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ namespace }}"
+        kind: Service
+        resource_definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: selenium
+            namespace: "{{ namespace }}"
+          spec:
+            ports:
+              - port: 7900
+                targetPort: 7900
+            selector:
+              app: selenium-node-chrome

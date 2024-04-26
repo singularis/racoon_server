@@ -74,6 +74,10 @@
       apt:
         name: python3-dev
         state: present
+    - name: Install apache2-utils
+      apt:
+        name: apache2-utils
+        state: present
     - name: Install cockpit-pcp
       apt:
         name: cockpit-pcp

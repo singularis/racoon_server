@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     vim \
     sudo \
+    python3-venv \
  && rm -rf /var/lib/apt/lists/*
 
 # Set up SSH

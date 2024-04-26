@@ -1,0 +1,38 @@
+---
+- name: Configure Ngrok Ingress for a chater
+  hosts: localhost
+  gather_facts: no
+
+  vars_files:
+    - ../../vars.yaml
+
+  tasks:
+
+    - name: Create Ngrok Ingress for Selenium
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: selenium-ngrok
+            namespace: selenium
+            annotations:
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/rewrite-target: /$1
+              nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+              nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+              nginx.ingress.kubernetes.io/enable-websocket: "true"
+          spec:
+            ingressClassName: ngrok
+            rules:
+              - host: "{{ vars.all.vars.ngrok.NGROK_DOMAIN }}"
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: nginx-selenium
+                          port:
+                            number: 4313

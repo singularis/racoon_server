@@ -1,0 +1,9 @@
+---
+- name: "Main file workload configuration"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+- name: Setup selenium
+  import_playbook: ./selenium.yaml
+- name: Setup nginx-sel-proxy
+  import_playbook: ./nginx.yaml

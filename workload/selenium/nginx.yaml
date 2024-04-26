@@ -1,13 +1,17 @@
 ---
 - name: Deploy NGINX reverse proxy with Basic Auth in Kubernetes
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ../../vars.yaml
   vars:
-    namespace: selenium
-    username: user1
-    password: securepassword
-    auth_file_name: .htpasswd
+    namespace: "{{ vars.all.vars.selenium.namespace }}"
+    password: "{{ vars.all.vars.selenium.nginx_password }}"
+    user: "{{ vars.all.vars.selenium.user }}"
     basic_auth_secret_name: nginx-basic-auth
     configmap_name: nginx-config
     selenium_service_url: "http://selenium.selenium.local.svc"
+    certificate_directory: "./certs"
 
   tasks:
     - name: Create namespace
@@ -16,66 +20,123 @@
         name: "{{ namespace }}"
         state: present
 
+    - name: Ensure certificate directory exists
+      ansible.builtin.file:
+        path: "{{ certificate_directory }}"
+        state: directory
+
+    - name: Generate Private Key
+      community.crypto.openssl_privatekey:
+        path: "{{ certificate_directory }}/tls.key"
+        size: 2048  # You can adjust the size as needed
+
+    - name: Generate SSL Certificate
+      community.crypto.x509_certificate:
+        path: "{{ certificate_directory }}/tls.crt"
+        privatekey_path: "{{ certificate_directory }}/tls.key"
+        provider: selfsigned
+        selfsigned_version: 3
+        selfsigned_digest: sha256
+        selfsigned_not_before: "20230101000000Z"  # Adjust as needed
+        selfsigned_not_after: "20240101000000Z"  # Adjust as needed
+
+    - name: Create or Update Kubernetes Secret for SSL Certificate
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ namespace }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: nginx-ssl
+          type: kubernetes.io/tls
+          data:
+            tls.crt: "{{ lookup('file', certificate_directory + '/tls.crt') | b64encode }}"
+            tls.key: "{{ lookup('file', certificate_directory + '/tls.key') | b64encode }}"
+
     - name: Generate htpasswd content
       ansible.builtin.command:
-        cmd: "htpasswd -nb {{ username }} {{ password }}"
+        cmd: "htpasswd -nb {{ user }} {{ password }}"
       register: htpasswd_content
       changed_when: false
 
     - name: Create Secret for Basic Auth
       kubernetes.core.k8s:
-        kind: Secret
-        namespace: "{{ namespace }}"
-        name: "{{ basic_auth_secret_name }}"
-        string_data:
-          "{{ auth_file_name }}": "{{ htpasswd_content.stdout }}"
         state: present
+        namespace: "{{ namespace }}"
+        kind: Secret
+        name: "{{ basic_auth_secret_name }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ basic_auth_secret_name }}"
+            namespace: "{{ namespace }}"
+          type: Opaque
+          data:
+            .htpasswd: "{{ htpasswd_content.stdout | b64encode }}"
+
 
     - name: Create ConfigMap for NGINX configuration
       kubernetes.core.k8s:
-        kind: ConfigMap
+        state: present
         namespace: "{{ namespace }}"
+        kind: ConfigMap
         name: "{{ configmap_name }}"
-        data:
-          nginx.conf: |
-            server {
-                listen 80;
-                server_name _;
-
-                location / {
-                    proxy_pass {{ selenium_service_url }};
-                    auth_basic "Restricted Content";
-                    auth_basic_user_file /etc/nginx/conf.d/{{ auth_file_name }};
-                }
-            }
+        resource_definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "{{ configmap_name }}"
+            namespace: "{{ namespace }}"
+          data:
+            nginx.conf: |
+              server {
+                  listen 4313 default_server;
+                  server_name singularis.work, www.singularis.work;
+                  location / {
+                      proxy_pass http://selenium.selenium.svc.cluster.local:7900/;
+                      auth_basic "Restricted Content";
+                      auth_basic_user_file /etc/nginx/auth/.htpasswd;  
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto $scheme;
+                      proxy_http_version 1.1;
+                      proxy_set_header Upgrade $http_upgrade;
+                      proxy_set_header Connection "upgrade";
+                  }
+              }
 
     - name: Deploy NGINX with Basic Auth
       kubernetes.core.k8s:
         kind: Deployment
         namespace: "{{ namespace }}"
-        name: nginx-proxy
+        name: nginx-proxy-selenium
         definition:
           spec:
             replicas: 1
             selector:
               matchLabels:
-                app: nginx-proxy
+                app: nginx-proxy-selenium
             template:
               metadata:
                 labels:
-                  app: nginx-proxy
+                  app: nginx-proxy-selenium
               spec:
                 containers:
                   - name: nginx
                     image: nginx:latest
                     ports:
-                      - containerPort: 80
+                      - containerPort: 4313
                     volumeMounts:
                       - name: nginx-config-volume
-                        mountPath: /etc/nginx/nginx.conf
-                        subPath: nginx.conf
-                      - name: auth-volume
                         mountPath: /etc/nginx/conf.d
+                      - name: ssl-certs
+                        mountPath: /etc/nginx/ssl
+                        readOnly: true
+                      - name: auth-volume
+                        mountPath: /etc/nginx/auth
                 volumes:
                   - name: nginx-config-volume
                     configMap:
@@ -83,3 +144,24 @@
                   - name: auth-volume
                     secret:
                       secretName: "{{ basic_auth_secret_name }}"
+                  - name: ssl-certs
+                    secret:
+                      secretName: nginx-ssl
+
+    - name: Create Service for NGINX proxy
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ namespace }}"
+        kind: Service
+        resource_definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: nginx-selenium
+            namespace: "{{ namespace }}"
+          spec:
+            ports:
+              - port: 4313
+                targetPort: 4313
+            selector:
+              app: nginx-proxy-selenium
