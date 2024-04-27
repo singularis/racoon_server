@@ -26,7 +26,7 @@
 
     - name: Create Ngrok Ingress for Nextcloud
       kubernetes.core.k8s:
-        state: present
+        state: absent
         definition:
           apiVersion: networking.k8s.io/v1
           kind: Ingress

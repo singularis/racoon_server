@@ -46,28 +46,7 @@
                           name: ngrok-chater
                           port:
                             number: 5000
-                    - path: /login
-                      pathType: Prefix
-                      backend:
-                        service:
-                          name: ngrok-chater
-                          port:
-                            number: 5000
-                    - path: /wait
-                      pathType: Prefix
-                      backend:
-                         service:
-                           name: ngrok-chater
-                           port:
-                             number: 5000
-                    - path: /clear_responses
-                      pathType: Prefix
-                      backend:
-                        service:
-                          name: ngrok-chater
-                          port:
-                            number: 5000
-                    - path: /logout
+                    - path: /chater_login
                       pathType: Prefix
                       backend:
                         service:
