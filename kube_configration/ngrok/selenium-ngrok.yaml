@@ -7,7 +7,6 @@
     - ../../vars.yaml
 
   tasks:
-
     - name: Create Ngrok Ingress for Selenium
       kubernetes.core.k8s:
         state: present
@@ -15,6 +14,11 @@
           apiVersion: networking.k8s.io/v1
           kind: Ingress
           metadata:
+            ownerReferences:
+              - apiVersion: networking.k8s.io/v1
+                kind: Ingress
+                name: selenium-ngrok
+                uid: c745c7b8-ce60-4e5f-a0f5-a4a97b21f95a
             name: selenium-ngrok
             namespace: selenium
             annotations:
