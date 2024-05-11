@@ -39,14 +39,7 @@
               - host: "{{ vars.all.vars.ngrok.NGROK_DOMAIN  }}"
                 http:
                   paths:
-                    - path: /chater
-                      pathType: Prefix
-                      backend:
-                        service:
-                          name: ngrok-chater
-                          port:
-                            number: 5000
-                    - path: /chater_login
+                    - path: /
                       pathType: Prefix
                       backend:
                         service:
