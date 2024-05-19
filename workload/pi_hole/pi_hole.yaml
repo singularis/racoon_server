@@ -11,12 +11,13 @@
     helm_chart_repo_url: https://mojo2600.github.io/pihole-kubernetes/
     helm_chart_ref: mojo2600/pihole
     helm_chart_release_name: pihole
+    helm_chart_namespace: "{{ vars.all.vars.pi_hole.namespace }}"
     serviceWebIP: "{{ vars.all.vars.pi_hole.serviceWebIP }}"
     serviceDnsIP: "{{ vars.all.vars.pi_hole.serviceDnsIP }}"
   tasks:
     - name: Print imported variables
       ansible.builtin.debug:
-        var: vars.all.vars.harbor
+        var: vars.all.vars.pi_hole
     - name: Create namespace
       kubernetes.core.k8s:
         api_version: v1

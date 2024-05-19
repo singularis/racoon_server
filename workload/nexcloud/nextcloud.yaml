@@ -12,6 +12,7 @@
     helm_chart_ref: nextcloud/nextcloud
     helm_chart_release_name: nextcloud
     helm_chart_namespace: "{{ vars.all.vars.nextcloud.namespace }}"
+    intermediate_version: "4.6.8"
   tasks:
     - name: Print imported variables
       ansible.builtin.debug:
@@ -88,3 +89,4 @@
             password: "{{ vars.all.vars.nextcloud.password }}"
           metrics:
             enabled: true
+        chart_version: "{{ intermediate_version }}"
