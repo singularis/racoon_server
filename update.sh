@@ -27,5 +27,6 @@ apt-get autoclean
 
 echo "Clean up unnecessary images..."
 sudo ctr -n=k8s.io images prune --all
+find . -type f -name ".attach_pid*" -exec rm -f {} \;
 
 echo "Update and cleanup process complete!"

@@ -21,5 +21,6 @@ do-release-upgrade
 echo "Cleaning up..."
 apt-get autoremove -y
 apt-get autoclean
+find . -type f -name ".attach_pid*" -exec rm -f {} \;
 
 echo "Ubuntu update complete. A reboot is recommended now."
