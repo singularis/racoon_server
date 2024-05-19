@@ -1,0 +1,45 @@
+---
+- name: Deploy Kube-VIP on localhost
+  hosts: localhost
+  gather_facts: false
+  vars:
+    kube_vip_chart_version: "0.6.0"
+    kube_vip_helm_repo: "https://kube-vip.github.io/helm-charts"
+    kube_vip_namespace: "kube-system"
+    kube_vip_values:
+      vip: "192.168.0.100-192.168.0.150"
+      interface: "wlp0s20f3"
+      lb:
+        enable: true
+      leaderElection:
+        enable: true
+
+  tasks:
+    - name: Install Helm
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Add Kube-VIP Helm repository
+      shell: helm repo add kube-vip {{ kube_vip_helm_repo }}
+      args:
+        creates: /root/.cache/helm/repository/kube-vip-index.yaml
+
+    - name: Update Helm repositories
+      shell: helm repo update
+
+    - name: Create namespace if not exists
+      kubernetes.core.k8s:
+        state: present
+        kind: Namespace
+        name: "{{ kube_vip_namespace }}"
+
+    - name: Deploy Kube-VIP Helm chart
+      kubernetes.core.helm:
+        name: kube-vip
+        chart_ref: kube-vip/kube-vip
+        chart_version: "{{ kube_vip_chart_version }}"
+        namespace: "{{ kube_vip_namespace }}"
+        release_state: absent
+        values: "{{ kube_vip_values }}"
