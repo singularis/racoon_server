@@ -165,12 +165,13 @@
                 protocol: TCP
                 port: 139
                 targetPort: 139
+                nodePort: 30139
               - name: smb-445
                 protocol: TCP
                 port: 445
                 targetPort: 445
-            type: LoadBalancer
-            loadBalancerIP: "{{ loadBalancerIP }}"
+                nodePort: 30445
+            type: NodePort
     - name: Restarting Samba Time Machine Deployment
       kubernetes.core.k8s:
         api_version: apps/v1

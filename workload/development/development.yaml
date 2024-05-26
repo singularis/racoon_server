@@ -156,7 +156,8 @@
               - protocol: TCP
                 port: 22
                 targetPort: 22
-            type: LoadBalancer
+                nodePort: 30022
+            type: NodePort
 
     - name: Ensure /other/development/ubuntu directory exists
       ansible.builtin.file:

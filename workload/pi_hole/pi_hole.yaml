@@ -59,13 +59,16 @@
         chart_ref: "{{ helm_chart_ref }}"
         namespace: "{{ helm_chart_namespace }}"
         state: present
-        wait: true
+        wait: false
         release_values:
           persistentVolumeClaim:
             enabled: true
           serviceWeb:
-            loadBalancerIP: "{{ serviceWebIP }}"
-            type: LoadBalancer
+            https:
+              enabled: true
+              nodePort: 32000
+            type: NodePort
           serviceDns:
-            loadBalancerIP: "{{ serviceDnsIP }}"
+            loadBalancerIP: 192.168.0.10
             type: LoadBalancer
+            mixedService: true

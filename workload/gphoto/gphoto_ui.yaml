@@ -35,12 +35,13 @@ metadata:
   namespace: gphoto
 spec:
   ports:
-  - port: 448
+  - port: 5000
     targetPort: 5000
+    nodePort: 30500
     name: gphoto-flask
   selector:
     app: gphoto-flask
-  type: LoadBalancer
+  type: NodePort
 ---
 # Prometheus LB
 apiVersion: v1
