@@ -31,7 +31,8 @@
         release_name: "{{ helm_chart_release_name }}"
         chart_ref: "{{ helm_chart_ref }}"
         namespace: "{{ helm_chart_namespace }}"
-        state: present
+        update_repo_cache: true
+        force: true
         wait: true
         values:
           credentials:

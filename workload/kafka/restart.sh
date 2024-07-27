@@ -14,3 +14,4 @@ kubectl -n kafka-new delete pod kafka-zookeeper-0 --grace-period=0 --force
 # Rollout restart the deployments
 kubectl rollout restart deployment kafka-entity-operator -n kafka-new
 kubectl rollout restart deployment strimzi-cluster-operator -n kafka-new
+kubectl rollout restart deployment strimzi-cluster-operator -n kafka-new

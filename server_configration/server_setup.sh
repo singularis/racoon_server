@@ -45,6 +45,13 @@ sudo apt install python3
 sudo apt install python3-pip
 sudo apt install ansible
 
+#Java
+sudo apt install default-jre
+
+#Maven
+
+sudo apt install maven
+
 # Check the Python version.
 python3 --version
 
