@@ -43,14 +43,16 @@
             kafka:
               replicas: 1
               listeners:
-                - name: plain
-                  port: 9092
-                  type: internal
+                - name: external
+                  port: 9094
+                  type: nodeport
                   tls: false
-                - name: tls
-                  port: 9093
-                  type: internal
-                  tls: true
+                  overrides:
+                    bootstrap:
+                      nodePort: 30092
+                    brokers:
+                      - broker: 0
+                        nodePort: 30093
               config:
                 offsets.topic.replication.factor: 1
                 transaction.state.log.replication.factor: 1
