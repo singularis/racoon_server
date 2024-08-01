@@ -14,7 +14,7 @@
             labels:
               strimzi.io/cluster: kafka-new
           spec:
-            partitions: 3
+            partitions: 1
             replicas: 1
             config:
               retention.ms: 604800000
@@ -32,7 +32,7 @@
             labels:
               strimzi.io/cluster: kafka-new
           spec:
-            partitions: 3
+            partitions: 1
             replicas: 1
             config:
               retention.ms: 604800000
@@ -50,7 +50,7 @@
             labels:
               strimzi.io/cluster: kafka-new
           spec:
-            partitions: 3
+            partitions: 1
             replicas: 1
             config:
               retention.ms: 604800000
@@ -68,7 +68,7 @@
             labels:
               strimzi.io/cluster: kafka-new
           spec:
-            partitions: 3
+            partitions: 1
             replicas: 1
             config:
               retention.ms: 604800000
@@ -86,7 +86,43 @@
             labels:
               strimzi.io/cluster: kafka-new
           spec:
-            partitions: 3
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 604800000
+              segment.bytes: 1073741824
+
+    - name: Create dlp-source topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: dlp-source
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 604800000
+              segment.bytes: 1073741824
+
+    - name: Create dlp-response topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: dlp-response
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
             replicas: 1
             config:
               retention.ms: 604800000
