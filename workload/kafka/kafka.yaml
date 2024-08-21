@@ -27,8 +27,8 @@
         operator_status.resources | length > 0 and
         operator_status.resources[0].status.readyReplicas is defined and
         operator_status.resources[0].status.readyReplicas == 1
-      retries: 30
-      delay: 10
+      retries: 60  # Increase the number of retries
+      delay: 20    # Increase the delay between retries
 
     - name: Deploy Kafka Cluster
       kubernetes.core.k8s:
@@ -57,12 +57,20 @@
                 offsets.topic.replication.factor: 1
                 transaction.state.log.replication.factor: 1
                 transaction.state.log.min.isr: 1
+                zookeeper.session.timeout.ms: 6000
+                request.timeout.ms: 6000
+                controlled.shutdown.max.retries: 3
+                controlled.shutdown.retry.backoff.ms: 5000
               storage:
                 type: persistent-claim
                 size: 2Gi
                 deleteClaim: true
             zookeeper:
               replicas: 1
+              config:
+                initLimit: 200
+                syncLimit: 100
+                tickTime: 50000
               storage:
                 type: persistent-claim
                 size: 1Gi
@@ -70,6 +78,7 @@
             entityOperator:
               topicOperator: {}
               userOperator: {}
+
     - name: Create PVs for Kafka
       kubernetes.core.k8s:
         state: present
@@ -125,6 +134,7 @@
                         values:
                           - "racoon"
       loop: [1]
+
     - name: Create directories for Kafka storage
       ansible.builtin.file:
         path: "/other/kafka/kafka-{{ item }}"

@@ -17,7 +17,7 @@
             partitions: 1
             replicas: 1
             config:
-              retention.ms: 604800000
+              retention.ms: 300000
               segment.bytes: 1073741824
 
     - name: Create gemini-receive topic
@@ -35,7 +35,7 @@
             partitions: 1
             replicas: 1
             config:
-              retention.ms: 604800000
+              retention.ms: 300000
               segment.bytes: 1073741824
 
     - name: Create gpt-receive topic
@@ -53,7 +53,7 @@
             partitions: 1
             replicas: 1
             config:
-              retention.ms: 604800000
+              retention.ms: 300000
               segment.bytes: 1073741824
 
     - name: Create gpt-send topic
@@ -71,7 +71,7 @@
             partitions: 1
             replicas: 1
             config:
-              retention.ms: 604800000
+              retention.ms: 300000
               segment.bytes: 1073741824
 
     - name: Create chater-aggregated topic
@@ -89,7 +89,7 @@
             partitions: 1
             replicas: 1
             config:
-              retention.ms: 604800000
+              retention.ms: 300000
               segment.bytes: 1073741824
 
     - name: Create dlp-source topic
@@ -107,7 +107,7 @@
             partitions: 1
             replicas: 1
             config:
-              retention.ms: 604800000
+              retention.ms: 300000
               segment.bytes: 1073741824
 
     - name: Create dlp-response topic
@@ -125,5 +125,5 @@
             partitions: 1
             replicas: 1
             config:
-              retention.ms: 604800000
+              retention.ms: 300000
               segment.bytes: 1073741824
