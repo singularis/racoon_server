@@ -14,15 +14,15 @@
           apiVersion: v1
           kind: Service
           metadata:
-            name: ngrok-chater
-            namespace: chater
+            name: ngrok-chater-ui
+            namespace: chater-ui
           spec:
             ports:
               - name: http
                 port: 5000
                 targetPort: 5000
             selector:
-              app: chater
+              app: chater-ui
 
     - name: Create Ngrok Ingress for Chater
       kubernetes.core.k8s:
@@ -32,7 +32,7 @@
           kind: Ingress
           metadata:
             name: chater-ngrok
-            namespace: chater
+            namespace: chater-ui
           spec:
             ingressClassName: ngrok
             rules:
@@ -43,6 +43,6 @@
                       pathType: Prefix
                       backend:
                         service:
-                          name: ngrok-chater
+                          name: ngrok-chater-ui
                           port:
                             number: 5000

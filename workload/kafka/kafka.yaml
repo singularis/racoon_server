@@ -27,8 +27,8 @@
         operator_status.resources | length > 0 and
         operator_status.resources[0].status.readyReplicas is defined and
         operator_status.resources[0].status.readyReplicas == 1
-      retries: 60  # Increase the number of retries
-      delay: 20    # Increase the delay between retries
+      retries: 60
+      delay: 20
 
     - name: Deploy Kafka Cluster
       kubernetes.core.k8s:
@@ -41,7 +41,7 @@
             name: kafka
           spec:
             kafka:
-              replicas: 1
+              replicas: 3
               listeners:
                 - name: external
                   port: 9094
@@ -66,11 +66,15 @@
                 size: 2Gi
                 deleteClaim: true
             zookeeper:
-              replicas: 1
+              replicas: 3
               config:
-                initLimit: 200
-                syncLimit: 100
-                tickTime: 50000
+                initLimit: 10
+                syncLimit: 5
+                tickTime: 2000
+                minSessionTimeout: 4000
+                autopurge:
+                  snapRetainCount: 3
+                  purgeInterval: 1
               storage:
                 type: persistent-claim
                 size: 1Gi
@@ -105,7 +109,7 @@
                         operator: In
                         values:
                           - "racoon"
-      loop: [1]
+      loop: [3]
 
     - name: Create PVs for Zookeeper
       kubernetes.core.k8s:
@@ -133,18 +137,18 @@
                         operator: In
                         values:
                           - "racoon"
-      loop: [1]
+      loop: [3]
 
     - name: Create directories for Kafka storage
       ansible.builtin.file:
         path: "/other/kafka/kafka-{{ item }}"
         state: directory
         mode: '0755'
-      loop: [1]
+      loop: [3]
 
     - name: Create directories for Zookeeper storage
       ansible.builtin.file:
         path: "/other/zookeeper/zookeeper-{{ item }}"
         state: directory
         mode: '0755'
-      loop: [1]
+      loop: [3]
