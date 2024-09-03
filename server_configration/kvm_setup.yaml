@@ -14,8 +14,6 @@
           - cpu-checker
           - libvirt-clients
           - libvirt-daemon
-          - qemu
-          - qemu-kvm
         state: present
     - name: Install virt-manager
       apt:

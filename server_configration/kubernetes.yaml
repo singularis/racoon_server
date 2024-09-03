@@ -1,55 +1,143 @@
 ---
-- name: Install Kubernetes on Ubuntu
-  hosts: localhost
-  become: true
+- name: Setup Kubernetes Cluster
+  hosts: all
+  become: yes
+  vars:
+    kubernetes_version: v1.31
+    crio_version: v1.30
+
   tasks:
-    - name: Update apt package cache
-      apt:
-        update_cache: true
+    - name: Ensure IP forwarding is enabled
+      copy:
+        dest: /etc/sysctl.d/k8s.conf
+        content: |
+          net.ipv4.ip_forward = 1
+      notify: Reload sysctl
 
-    - name: Upgrade all packages
-      apt:
-        upgrade: true
-
-    - name: Install required packages
-      apt:
-        name: "{{ item }}"
+    - name: Reload sysctl settings
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
         state: present
-      with_items:
-        - apt-transport-https
-        - ca-certificates
-        - curl
+        reload: yes
 
-    - name: Download Kubernetes APT key and save it to the keyring
-      command: "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg"
+    - name: Export environment variables
+      shell: |
+        export KUBERNETES_VERSION={{ kubernetes_version }}
+        export CRIO_VERSION={{ crio_version }}
+      register: env_vars
 
-    - name: Add Kubernetes APT repository
-      shell: echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
-
-    - name: Update apt package cache
+    - name: Install prerequisites
       apt:
+        name:
+          - software-properties-common
+          - curl
+        state: present
         update_cache: yes
 
-    - name: Install Kubernetes packages
-      apt:
-        name: "{{ item }}"
-        state: present
-      with_items:
-        - kubelet
-        - kubeadm
-        - kubectl
+    - name: Add Kubernetes apt repository key
+      ansible.builtin.command: >
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/${env_vars.stdout_lines[0]}/deb/Release.key |
+        gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
-    - name: Mark Kubernetes packages on hold
+    - name: Add Kubernetes repository
+      ansible.builtin.command: >
+        echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${env_vars.stdout_lines[0]}/deb/ /" |
+        tee /etc/apt/sources.list.d/kubernetes.list
+      args:
+        creates: /etc/apt/sources.list.d/kubernetes.list
+
+    - name: Add CRI-O apt repository key
+      ansible.builtin.command: >
+        curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/${env_vars.stdout_lines[1]}/deb/Release.key |
+        gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+
+    - name: Add CRI-O repository
+      ansible.builtin.command: >
+        echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/${env_vars.stdout_lines[1]}/deb/ /" |
+        tee /etc/apt/sources.list.d/cri-o.list
+      args:
+        creates: /etc/apt/sources.list.d/cri-o.list
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install cri-o, kubelet, kubeadm, and kubectl
       apt:
-        name: "{{ item }}"
-        state: hold
-      with_items:
-        - kubelet
-        - kubeadm
-        - kubectl
-    - name: Initialize the Kubernetes cluster with pod network CIDR
-      command: kubeadm init --config ./kubeadm-config.yaml
-      register: kubeadm_output
-      ignore_errors: yes
-    - name: Deploy Flannel using kubectl
-      command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        name:
+          - cri-o
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+
+    - name: Start cri-o service
+      systemd:
+        name: crio
+        state: started
+        enabled: yes
+
+    - name: Disable swap
+      command: swapoff -a
+      when: ansible_swaptotal_mb > 0
+
+    - name: Load br_netfilter module
+      modprobe:
+        name: br_netfilter
+        state: present
+
+    - name: Ensure net.ipv4.ip_forward is enabled
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: yes
+
+    - name: Hold kubelet, kubeadm, kubectl versions
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        mark: hold
+
+    - name: Enable kubelet service
+      systemd:
+        name: kubelet
+        enabled: yes
+        state: started
+
+    - name: Initialize Kubernetes cluster
+      command: kubeadm init --pod-network-cidr=192.168.0.0/16
+      register: kubeadm_init
+
+    - name: Create .kube directory
+      file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+        mode: '0755'
+
+    - name: Copy admin.conf to user's kube config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ ansible_env.HOME }}/.kube/config"
+        remote_src: yes
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Apply Calico network plugin
+      ansible.builtin.command: >
+        kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/tigera-operator.yaml
+
+    - name: Apply Calico custom resources
+      ansible.builtin.command: >
+        kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/custom-resources.yaml
+
+    - name: Remove taint from master node
+      ansible.builtin.command: >
+        kubectl taint nodes --all node-role.kubernetes.io/control-plane-

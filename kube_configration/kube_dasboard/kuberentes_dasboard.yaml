@@ -8,10 +8,16 @@
     helm_chart_namespace: "{{ vars.all.vars.ssl_namespace }}"
 
   tasks:
+    - name: Install community.kubernetes collection
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install community.kubernetes
+      args:
+        creates: ~/.ansible/collections/ansible_collections/community/kubernetes
     - name: Install openshift Python module
       ansible.builtin.pip:
-        name: openshift
+        name: kubernetes
         state: present
+        extra_args: "--break-system-packages"
     - name: Add stable Helm repository
       kubernetes.core.helm_repository:
         name: kubernetes-dashboard

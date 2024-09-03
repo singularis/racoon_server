@@ -1,0 +1,4 @@
+Manaul steps, automation ussless.
+
+kubeadm token create --print-join-command
+kubeadm join 192.168.0.10:6443 --token 6vnacp.cjilux68kl0kbw4z --discovery-token-ca-cert-hash sha256:f9049b3389b11f773cece14026a15bf53220e03916ddab87fdd805aba0a1e1fa

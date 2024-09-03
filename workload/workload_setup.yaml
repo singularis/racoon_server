@@ -3,21 +3,15 @@
   hosts: localhost
   connection: local
   gather_facts: false
-- name: Setup pi_hole
-  import_playbook: ./pi_hole/pi_hole.yaml
-- name: Setup gphoto
-  import_playbook: ./gphoto/gphoto.yaml
-- name: Setup nexcloud
-  import_playbook: ./nexcloud/nextcloud.yaml
-- name: Setup samba
-  import_playbook: ./samba/samba.yaml
-- name: Setup chater
-  import_playbook: ./chater/chater.yaml
+#- name: Setup gphoto
+#  import_playbook: ./gphoto/gphoto.yaml
 - name: Setup Kafka
   import_playbook: ./kafka/kafka.yaml
 - name: Create topics
-  import_playbook: ./topics.yaml
-- name: Create gramoxy
-  import_playbook: ./gramoxy.yaml
-- name: Create selenium
-  import_playbook: ./selenium.yaml
+  import_playbook: ./kafka/topics.yaml
+#- name: Setup chater
+#  import_playbook: ./chater/chater.yaml
+#- name: Create gramoxy
+#  import_playbook: ./gramoxy.yaml
+#- name: Create selenium
+#  import_playbook: ./selenium.yaml

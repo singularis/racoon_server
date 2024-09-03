@@ -3,11 +3,6 @@
   become: yes
   hosts: localhost
   connection: local
-  pre_tasks:
-    - name: Clone GitHub repository
-      git:
-        repo: https://github.com/gantsign/ansible_role_minikube.git
-        dest: '/usr/share/ansible/roles/minikube'  
   tasks:
     - name: Update apt cache
       apt:
@@ -27,10 +22,6 @@
         name: cockpit
         state: started
         enabled: yes
-    - name: Install apparmor-utils
-      apt:
-        name: apparmor-utils
-        state: present
     - name: Add HashiCorp GPG key
       apt_key:
         url: https://apt.releases.hashicorp.com/gpg
@@ -52,8 +43,6 @@
     - name: Display Terraform version
       debug:
         var: terraform_output.stdout_lines
-    - name: Enable AppArmor enforce mode
-      command: aa-enforce /etc/apparmor.d/*
     - name: Install build-essential
       apt:
         name: build-essential
@@ -90,18 +79,9 @@
       apt:
         name: wget
         state: present
-    - name: Setup slim
-      apt:
-        name: slim
-        state: present
     - name: Setup desktop
       apt:
         name: ubuntu-desktop
-        state: present
-    - name: Install kubectl snap
-      snap:
-        name: kubectl
-        classic: yes
         state: present
     - name: Install helm snap
       snap:
@@ -112,14 +92,6 @@
       snap:
         name: code
         classic: yes
-        state: present 
-    - name: Setup timeshift
-      apt:
-        name: timeshift
-        state: present
-    - name: Setup xvfb
-      apt:
-        name: xvfb
         state: present
     - name: Setup node
       apt:
@@ -127,17 +99,12 @@
           - nodejs 
           - npm
         state: present
-    - name: Install ansible-lint
-      pip:
-        name: ansible-lint
-        state: present
-    - name: Install forever
-      npm:
-        name: forever
-        state: present
-    - name: Install pip-kuberentes
-      pip:
-        name: kubernetes
+    - name: Install dependencies for chrome-remote-desktop
+      apt:
+        name:
+          - xserver-xorg-video-dummy
+          - xbase-clients
+          - python3-psutil
         state: present
     - name: download sources chrome
       get_url: url=https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb dest=/tmp/google-chrome-stable_current_amd64.deb
@@ -152,20 +119,9 @@
     - name: Install all
       shell: |
         sudo apt install -y --fix-broken
-  roles:
-    - role: minikube
-  post_tasks:
-    - name: Install Docker
-      become: no
-      apt:
-        name: docker.io
-        state: present
-    - name: Docker permissions
-      shell: |
-        sudo chmod 666  /var/run/docker.sock
-    - name: Start Docker
-      become: no
-      service:
-        name: docker
-        state: started
+    - name: Set default systemd target to multi-user
+      ansible.builtin.systemd:
+        name: multi-user.target
         enabled: yes
+        state: started
+        daemon_reload: yes

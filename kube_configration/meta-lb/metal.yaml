@@ -3,9 +3,6 @@
   hosts: localhost
   gather_facts: false
 
-  vars_files:
-    - ../../vars.yaml
-
   vars:
     helm_chart_repo: metallb
     helm_chart_ref: metallb/metallb

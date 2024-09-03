@@ -5,3 +5,6 @@ __pycache__
 dlp.py
 dlp-secret-auth
 certs
+workers_inventory.ini
+vars*
+notes*
