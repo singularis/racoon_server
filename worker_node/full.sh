@@ -1,3 +1,27 @@
+#!/bin/bash
+
+# Ensure the script is run as root
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root"
+  exit 1
+fi
+
+echo "Updating the package list..."
+apt-get update -y
+apt upgrade -y
+
+echo "Installing software prerequisites for Ansible..."
+sudo apt install fish -y
+# Install dependencies
+apt-get install -y software-properties-common
+
+# Add Ansible's PPA repository
+echo "Adding Ansible PPA repository..."
+add-apt-repository --yes --update ppa:ansible/ansible
+
+# Install Ansible
+echo "Installing Ansible..."
+apt-get install -y ansible
 nc 127.0.0.1 6443 -v
 cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
 net.ipv4.ip_forward = 1
@@ -25,10 +49,8 @@ modprobe br_netfilter
 sysctl -w net.ipv4.ip_forward=1
 sudo apt-mark hold kubelet kubeadm kubectl
 sudo systemctl enable --now kubelet
-sudo kubeadm init --pod-network-cidr=192.168.0.10/16
-mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/tigera-operator.yaml
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/custom-resources.yaml
-kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+sudo apt install cockpit-pcp
+sudo systemctl enable cockpit --now
+#mkdir -p $HOME/.kube
+#sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+#sudo chown $(id -u):$(id -g) $HOME/.kube/config

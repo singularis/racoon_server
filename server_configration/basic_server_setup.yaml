@@ -8,117 +8,112 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
+
     - name: Upgrade all packages
       apt:
         upgrade: dist
         update_cache: yes
         force_apt_get: yes
-    - name: Install cockpit
+
+    - name: Install essential packages
       apt:
-        name: cockpit
+        name:
+          - cockpit
+          - build-essential
+          - git
+          - chrony
+          - openssh-server
+          - python3-dev
+          - apache2-utils
+          - cockpit-pcp
+          - sudo
+          - wget
+          - ubuntu-desktop
+          - xvfb
+          - xserver-xorg-video-dummy
+          - xbase-clients
+          - python3-psutil
         state: present
+
     - name: Enable cockpit
       service:
         name: cockpit
         state: started
         enabled: yes
+
     - name: Add HashiCorp GPG key
       apt_key:
         url: https://apt.releases.hashicorp.com/gpg
         state: present
+
     - name: Add Terraform repository
       apt_repository:
-        repo: deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main
+        repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
         state: present
-    - name: Update apt cache
+
+    - name: Update apt cache after adding repositories
       apt:
         update_cache: yes
+
     - name: Install Terraform
       apt:
         name: terraform
         state: present
+
     - name: Run Terraform version command
       command: terraform version
       register: terraform_output
+
     - name: Display Terraform version
       debug:
         var: terraform_output.stdout_lines
-    - name: Install build-essential
-      apt:
-        name: build-essential
-        state: present
-    - name: Install git
-      apt:
-        name: git
-        state: present
-    - name: Install chrony
-      apt:
-        name: chrony
-        state: present
-    - name: Install openssh-server
-      apt:
-        name: openssh-server
-        state: present
-    - name: Install python3-dev
-      apt:
-        name: python3-dev
-        state: present
-    - name: Install apache2-utils
-      apt:
-        name: apache2-utils
-        state: present
-    - name: Install cockpit-pcp
-      apt:
-        name: cockpit-pcp
-        state: present
-    - name: Install sudo
-      apt:
-        name: sudo
-        state: present
-    - name: Install wget
-      apt:
-        name: wget
-        state: present
-    - name: Setup desktop
-      apt:
-        name: ubuntu-desktop
-        state: present
-    - name: Install helm snap
+
+    - name: Install Helm snap
       snap:
-        name: helm 
+        name: helm
         classic: yes
         state: present
-    - name: Install vscode
+
+    - name: Install VSCode snap
       snap:
         name: code
         classic: yes
         state: present
-    - name: Setup node
+
+    - name: Setup Node.js and npm
       apt:
         name:
-          - nodejs 
+          - nodejs
           - npm
         state: present
-    - name: Install dependencies for chrome-remote-desktop
+
+    - name: Download Google Chrome
+      get_url:
+        url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        dest: /tmp/google-chrome-stable_current_amd64.deb
+
+    - name: Install Google Chrome
       apt:
-        name:
-          - xserver-xorg-video-dummy
-          - xbase-clients
-          - python3-psutil
+        deb: /tmp/google-chrome-stable_current_amd64.deb
+
+    - name: Download Chrome Remote Desktop
+      get_url:
+        url: https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb
+        dest: /tmp/chrome-remote-desktop_current_amd64.deb
+
+    - name: Install Chrome Remote Desktop
+      apt:
+        deb: /tmp/chrome-remote-desktop_current_amd64.deb
+      ignore_errors: yes
+
+    - name: Fix broken dependencies if any
+      apt:
+        name: "{{ item }}"
         state: present
-    - name: download sources chrome
-      get_url: url=https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb dest=/tmp/google-chrome-stable_current_amd64.deb
-    - name: Install chrome
-      shell: |
-        sudo dpkg -i /tmp/google-chrome-stable_current_amd64.deb
-    - name: download sources chrome-remote-desktop
-      get_url: url=https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb dest=/tmp/chrome-remote-desktop_current_amd64.deb
-    - name: Install chrome-remote-desktop
-      shell: |
-        sudo dpkg -i /tmp/chrome-remote-desktop_current_amd64.deb
-    - name: Install all
-      shell: |
-        sudo apt install -y --fix-broken
+        force_apt_get: yes
+      with_items:
+        - chrome-remote-desktop
+
     - name: Set default systemd target to multi-user
       ansible.builtin.systemd:
         name: multi-user.target

@@ -11,14 +11,6 @@ sudo apt-add-repository ppa:fish-shell/release-3
 sudo apt update
 sudo apt install fish -y
 
-# Check if kubectl is already installed.
-if kubectl version > /dev/null; then
-  echo "kubectl is already installed."
-  exit 0
-fi
-
-# Verify the installation.
-kubectl version
 
 sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
 # Disable password authentication.
@@ -48,7 +40,7 @@ sudo apt install maven -y
 python3 --version
 
 # Install Ansible using pip.
-pip3 install ansible
+sudo apt install ansible
 
 # Check the Ansible version.
 ansible --version

@@ -8,9 +8,10 @@ fi
 
 echo "Updating the package list..."
 apt-get update -y
+apt upgrade -y
 
 echo "Installing software prerequisites for Ansible..."
-
+sudo apt install fish -y
 # Install dependencies
 apt-get install -y software-properties-common
 

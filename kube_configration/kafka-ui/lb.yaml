@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui-nodeport
+  namespace: kafka-new
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30448
+      name: http
+  selector:
+    app.kubernetes.io/name: kafka-ui
+  type: NodePort

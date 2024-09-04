@@ -1,0 +1,35 @@
+---
+- name: "Kuberentes configuration"
+  hosts: localhost
+  connection: local
+  vars_files:
+    - ../../vars.yaml
+  vars:
+    helm_chart_namespace: kafka-new
+
+  tasks:
+#    - name: Add stable Helm repository
+#      kubernetes.core.helm_repository:
+#        name: kubernetes-dashboard
+#        repo_url: https://provectus.github.io/kafka-ui-charts
+    - name: Create kafka namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ helm_chart_namespace }}"
+        state: present
+    - name: Create kafka-ui config
+      command: kubectl apply -f config.yaml
+    - name: Install kafka-ui Helm chart
+      community.kubernetes.helm:
+        release_name: kafka-ui
+        chart_ref: kafka-ui/kafka-ui
+        namespace: "{{ helm_chart_namespace }}"
+        values:
+          yamlApplicationConfigConfigMap.name: "kafka-ui-configmap"
+          yamlApplicationConfigConfigMap.keyName: "config.yml"
+        update_repo_cache: true
+        force: true
+        wait: true
+    - name: Create kafka-ui lb
+      command: kubectl apply -f lb.yaml
