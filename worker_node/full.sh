@@ -51,6 +51,15 @@ sudo apt-mark hold kubelet kubeadm kubectl
 sudo systemctl enable --now kubelet
 sudo apt install cockpit-pcp
 sudo systemctl enable cockpit --now
-#mkdir -p $HOME/.kube
-#sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-#sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+#RPI
+sudo apt install -y git cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib libusb-1.0-0-dev
+sudo apt install build-essential rkdeveloptool
+git clone https://github.com/raspberrypi/pico-sdk.git
+cd pico-sdk
+git submodule update --init
+# Documentations https://docs.radxa.com/en/x/x4/software/c_sdk_examples
+export PICO_SDK_PATH=/home/dante/pico-sdk
+sudo apt install -y gpiod
+sudo apt install -y libgpiod-tools
+
