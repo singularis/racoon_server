@@ -14,6 +14,9 @@ echo "Installing software prerequisites for Ansible..."
 sudo apt install fish -y
 # Install dependencies
 apt-get install -y software-properties-common
+sudo apt install cockpit
+sudo systemctl start cockpit
+sudo systemctl enable cockpit
 
 # Add Ansible's PPA repository
 echo "Adding Ansible PPA repository..."
