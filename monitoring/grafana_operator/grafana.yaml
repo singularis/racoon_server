@@ -48,6 +48,13 @@
             labels:
               dashboards: "grafana"
           spec:
+            persistentVolumeClaim:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 10Gi
             config:
               log:
                 mode: "console"
@@ -56,6 +63,53 @@
               security:
                 admin_user: admin
                 admin_password: "{{ password }}"
+            deployment:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: grafana
+                        image: grafana/grafana:11.2.2
+                        securityContext:
+                          allowPrivilegeEscalation: true
+                          readOnlyRootFilesystem: false
+                        readinessProbe:
+                          failureThreshold: 3
+                    volumes:
+                      - name: grafana-data
+                        persistentVolumeClaim:
+                          claimName: grafana-pvc
+    - name: Ensure /other_hdd/grafana directory exists
+      ansible.builtin.file:
+        path: /other_hdd/grafana
+        state: directory
+        mode: '0755'
+    - name: Create Persistent Volume
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: grafana-pv
+            namespace: "{{ namespace }}"
+          spec:
+            capacity:
+              storage: 10Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Recycle
+            local:
+              path: /other_hdd/grafana
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
     - name: Deploy Grafana Instance
       kubernetes.core.k8s:
         state: present
@@ -117,6 +171,7 @@
                 port: 3000
                 targetPort: 3000
             type: LoadBalancer
+            loadBalancerIP: 192.168.0.15
 # TODO Should be fixed. Currently return error
 #"Failed to find exact match for grafana.integreatly.org/v1beta1.GrafanaDataSource by [kind, name, singularName, shortNames]
 #    - name: Create Prometheus DataSource for Grafana

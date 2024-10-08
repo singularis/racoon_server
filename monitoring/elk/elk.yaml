@@ -56,7 +56,6 @@
             accessModes:
               - ReadWriteOnce
             persistentVolumeReclaimPolicy: Recycle
-            storageClassName: local-storage
             local:
               path: /other_hdd/elk
             nodeAffinity:
