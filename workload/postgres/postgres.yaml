@@ -1,0 +1,7 @@
+---
+- name: "Postgres"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+- name: Setup postgres-operator
+  import_playbook: ./postgres_operator.yaml

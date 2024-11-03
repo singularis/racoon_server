@@ -1,0 +1,42 @@
+---
+- name: Install PostgreSQL Operator and UI with Helm on localhost
+  hosts: localhost
+  tasks:
+
+    - name: Create namespace for postgres-operator
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: postgres-operator
+        state: present
+
+    - name: Create namespace for postgres-operator-ui
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: postgres-operator-ui
+        state: present
+
+    - name: Add repository for postgres-operator
+      community.kubernetes.helm_repository:
+        name: postgres-operator-charts
+        repo_url: https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+
+    - name: Add repository for postgres-operator-ui
+      community.kubernetes.helm_repository:
+        name: postgres-operator-ui-charts
+        repo_url: https://opensource.zalando.com/postgres-operator/charts/postgres-operator-ui
+
+    - name: Install postgres-operator in postgres-operator namespace
+      community.kubernetes.helm:
+        name: postgres-operator
+        chart_ref: postgres-operator-charts/postgres-operator
+        release_namespace: postgres-operator
+        state: present
+
+    - name: Install postgres-operator-ui in postgres-operator-ui namespace
+      community.kubernetes.helm:
+        name: postgres-operator-ui
+        chart_ref: postgres-operator-ui-charts/postgres-operator-ui
+        release_namespace: postgres-operator-ui
+        state: present

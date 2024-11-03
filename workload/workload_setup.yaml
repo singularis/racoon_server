@@ -15,3 +15,5 @@
 #  import_playbook: ./gramoxy.yaml
 #- name: Create selenium
 #  import_playbook: ./selenium.yaml
+- name: postgres
+  import_playbook: ./postgres/postgres.yaml
