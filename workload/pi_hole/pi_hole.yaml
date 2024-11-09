@@ -1,10 +1,11 @@
 ---
-- name: Install harbor Helm Chart
+- name: Install Pi-hole Helm Chart
   hosts: localhost
   gather_facts: false
 
   vars_files:
     - ../../vars.yaml
+    - ./lists.yaml
 
   vars:
     helm_chart_repo: mojo2600
@@ -14,23 +15,27 @@
     helm_chart_namespace: "{{ vars.all.vars.pi_hole.namespace }}"
     serviceWebIP: "{{ vars.all.vars.pi_hole.serviceWebIP }}"
     serviceDnsIP: "{{ vars.all.vars.pi_hole.serviceDnsIP }}"
+
   tasks:
     - name: Print imported variables
       ansible.builtin.debug:
         var: vars.all.vars.pi_hole
+
     - name: Create namespace
       kubernetes.core.k8s:
         api_version: v1
         kind: Namespace
         name: "{{ helm_chart_namespace }}"
         state: present
+
     - name: Add Helm chart repository
       community.kubernetes.helm_repository:
         name: "{{ helm_chart_repo }}"
         repo_url: "{{ helm_chart_repo_url }}"
-    - name: PV data-harbor-redis-0
+
+    - name: PV data-pihole
       kubernetes.core.k8s:
-        state: absent
+        state: present
         definition:
           apiVersion: v1
           kind: PersistentVolume
@@ -53,23 +58,75 @@
                         operator: In
                         values:
                           - "racoon"
-    - name: Install harbor Helm chart
+
+    - name: Install pi-hole Helm chart
       community.kubernetes.helm:
         name: "{{ helm_chart_release_name }}"
         chart_ref: "{{ helm_chart_ref }}"
         namespace: "{{ helm_chart_namespace }}"
-        state: absent
-        wait: false
+        state: present
+        wait: true
         release_values:
+          adlists: "{{ adlists }}"
+          whitelist: "{{ whitelist }}"
+          adminPassword: "{{ vars.all.vars.pi_hole.password }}"
           persistentVolumeClaim:
             enabled: true
-          serviceWeb:
-            annotations:
-              metallb.universe.tf/allow-shared-ip: pihole-svc
+          extraEnvVars:
+            DNSMASQ_USER: "root"
+          podDnsConfig:
+            enabled: true
+            policy: "None"
+            nameservers:
+            - 127.0.0.1
+            - 8.8.8.8
+            - 1.1.1.1
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+
+    - name: Deploy pi-hole DNS MetaLB
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: pi-hole-dns-metal-lb
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            selector:
+              app: pihole
+            ports:
+              - name: dns-tcp
+                protocol: TCP
+                port: 53
+                targetPort: 53
+              - name: dns-udp
+                protocol: UDP
+                port: 53
+                targetPort: 53
             type: LoadBalancer
-            loadBalancerIP: 192.168.1.10
-          serviceDns:
-            annotations:
-              metallb.universe.tf/allow-shared-ip: pihole-svc
+            loadBalancerIP: "{{ serviceDnsIP }}"
+    - name: Deploy pi-hole WEB MetaLB
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: pi-hole-web-metal-lb
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            selector:
+              app: pihole
+            ports:
+              - protocol: TCP
+                port: 80
+                targetPort: 80
             type: LoadBalancer
-            loadBalancerIP: 192.168.1.10
+            loadBalancerIP: "{{ serviceWebIP }}"
