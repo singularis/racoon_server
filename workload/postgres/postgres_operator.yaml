@@ -40,3 +40,22 @@
         chart_ref: postgres-operator-ui-charts/postgres-operator-ui
         release_namespace: postgres-operator-ui
         state: present
+
+    - name: Create ClusterIP service for postgres-operator-ui
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: eater-postgres-service
+            namespace: postgres-operator-ui
+          spec:
+            type: LoadBalancer
+            loadBalancerIP: 192.168.0.22
+            selector:
+              app.kubernetes.io/name: postgres-operator-ui
+            ports:
+              - protocol: TCP
+                port: 8081
+                targetPort: 8081
