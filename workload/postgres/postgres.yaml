@@ -5,3 +5,5 @@
   gather_facts: false
 - name: Setup postgres-operator
   import_playbook: ./postgres_operator.yaml
+- name: Setup pgadmin
+  import_playbook: ./pgadmin.yaml

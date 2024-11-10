@@ -1,0 +1,120 @@
+---
+- name: Deploy pgAdmin with Persistent Storage and LoadBalancer in a Custom Namespace
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../vars.yaml
+
+  tasks:
+    - name: Create pgadmin Namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: pgadmin
+    - name: Create local directory for pgadmin
+      ansible.builtin.file:
+        path: /other/pgadmin
+        state: directory
+        mode: '0755'
+    - name: Create pgadmin PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        namespace: pgadmin
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: pgadmin-pv
+            namespace: pgadmin
+          spec:
+            capacity:
+              storage: 1Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Recycle
+            local:
+              path: /other/pgadmin
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create Persistent Volume Claim in pgadmin Namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: pgadmin-pvc
+            namespace: pgadmin
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+
+    - name: Deploy pgAdmin in pgadmin Namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: pgadmin
+            namespace: pgadmin
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: pgadmin
+            template:
+              metadata:
+                labels:
+                  app: pgadmin
+              spec:
+                containers:
+                  - name: pgadmin
+                    image: dpage/pgadmin4:latest
+                    ports:
+                      - containerPort: 80
+                    env:
+                      - name: PGADMIN_DEFAULT_EMAIL
+                        value: "{{ vars.all.vars.pgadmin.user }}"
+                      - name: PGADMIN_DEFAULT_PASSWORD
+                        value: "{{ vars.all.vars.pgadmin.password }}"
+                    volumeMounts:
+                      - name: pgadmin-data
+                        mountPath: /var/lib/pgadmin
+                volumes:
+                  - name: pgadmin-data
+                    persistentVolumeClaim:
+                      claimName: pgadmin-pvc
+
+    - name: Expose pgAdmin with a LoadBalancer Service in pgadmin Namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: pgadmin-service
+            namespace: pgadmin
+          spec:
+            type: LoadBalancer
+            loadBalancerIP: 192.168.0.20
+            ports:
+              - port: 80
+                targetPort: 80
+            selector:
+              app: pgadmin
