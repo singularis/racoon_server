@@ -127,3 +127,147 @@
             config:
               retention.ms: 300000
               segment.bytes: 1073741824
+
+    - name: Create delete_food topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: delete_food
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 300000
+              segment.bytes: 1073741824
+
+    - name: Create eater-send-photo topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: eater-send-photo
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 300000
+              segment.bytes: 1073741824
+
+    - name: Create gemini-response topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: gemini-response
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 300000
+              segment.bytes: 1073741824
+
+    - name: Create get_today_data topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: get_today_data
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 300000
+              segment.bytes: 1073741824
+
+    - name: Create gpt-response topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: gpt-response
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 300000
+              segment.bytes: 1073741824
+
+    - name: Create photo-analysis-response topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: photo-analysis-response
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 300000
+              segment.bytes: 1073741824
+
+    - name: Create photo-analysis-response-check topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: photo-analysis-response-check
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 300000
+              segment.bytes: 1073741824
+
+    - name: Create send_today_data topic
+      k8s:
+        state: present
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaTopic
+          metadata:
+            name: send_today_data
+            namespace: kafka-new
+            labels:
+              strimzi.io/cluster: kafka-new
+          spec:
+            partitions: 1
+            replicas: 1
+            config:
+              retention.ms: 300000
+              segment.bytes: 1073741824
