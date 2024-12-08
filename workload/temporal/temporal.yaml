@@ -1,0 +1,81 @@
+- name: Deploy Temporal Helm Chart and set up instance 'eater'
+  hosts: localhost
+  vars_files:
+    - ../../vars.yaml
+  vars:
+    serviceWebIP: "{{ vars.all.vars.temporal.serviceWebIP }}"
+    serviceClientIP: "{{ vars.all.vars.temporal.serviceClientIP }}"
+  tasks:
+
+    - name: Add Temporal Helm repository
+      community.kubernetes.helm_repository:
+        name: temporal
+        repo_url: https://go.temporal.io/helm-charts
+
+    - name: Create namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: temporal
+        state: present
+
+    - name: Install temporal Helm chart
+      community.kubernetes.helm:
+        name: temporal
+        chart_ref: temporal
+        namespace: temporal
+        state: present
+        wait: true
+        timeout: 900s
+        release_values:
+          server:
+            replicaCount: 1
+          cassandra:
+            config:
+              cluster_size: 1
+          elasticsearch:
+            replicas: 1
+          prometheus:
+            enabled: false
+          grafana:
+            enabled: false
+        chart_repo_url: https://go.temporal.io/helm-charts
+
+    - name: Deploy temporal WEB MetaLB
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: temporal-web-metal-lb
+            namespace: temporal
+          spec:
+            selector:
+              app.kubernetes.io/component: web
+              app.kubernetes.io/instance: temporal
+            ports:
+              - protocol: TCP
+                port: 8080
+                targetPort: 8080
+            type: LoadBalancer
+            loadBalancerIP: "{{ serviceWebIP }}"
+    - name: Deploy temporal frontend MetaLB
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: temporal-frontend-metal-lb
+            namespace: temporal
+          spec:
+            selector:
+              app.kubernetes.io/component: frontend
+              app.kubernetes.io/instance: temporal
+            ports:
+              - protocol: TCP
+                port: 7233
+                targetPort: 7233
+            type: LoadBalancer
+            loadBalancerIP: "{{ serviceClientIP }}"
