@@ -24,7 +24,7 @@
         name: temporal
         chart_ref: temporal
         namespace: temporal
-        state: present
+        state: absent
         wait: true
         timeout: 900s
         release_values:
@@ -43,7 +43,7 @@
 
     - name: Deploy temporal WEB MetaLB
       kubernetes.core.k8s:
-        state: present
+        state: absent
         definition:
           apiVersion: v1
           kind: Service
@@ -62,7 +62,7 @@
             loadBalancerIP: "{{ serviceWebIP }}"
     - name: Deploy temporal frontend MetaLB
       kubernetes.core.k8s:
-        state: present
+        state: absent
         definition:
           apiVersion: v1
           kind: Service

@@ -33,6 +33,7 @@
           - xserver-xorg-video-dummy
           - xbase-clients
           - python3-psutil
+          - python3-venv
         state: present
 
     - name: Enable cockpit
