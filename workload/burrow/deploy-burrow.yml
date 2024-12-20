@@ -1,0 +1,90 @@
+---
+- name: Deploy Burrow to Monitor Kafka
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    burrow_namespace: "kafka-new"
+    burrow_app_name: "burrow"
+    burrow_image: "ghcr.io/linkedin/burrow/burrow:latest"
+    loadbalancer_ip: "192.168.0.53"
+
+  tasks:
+    - name: Create namespace (if not present)
+      kubernetes.core.k8s:
+        state: present
+        kind: Namespace
+        name: "{{ burrow_namespace }}"
+
+    - name: Create Burrow config ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ burrow_namespace }}"
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "{{ burrow_app_name }}-config"
+          data:
+            burrow.toml: "{{ lookup('template', 'templates/burrow-config.toml.j2') }}"
+
+    - name: Deploy Burrow
+      kubernetes.core.k8s:
+        state: absent
+        namespace: "{{ burrow_namespace }}"
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ burrow_app_name }}"
+            labels:
+              app: "{{ burrow_app_name }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: "{{ burrow_app_name }}"
+            template:
+              metadata:
+                labels:
+                  app: "{{ burrow_app_name }}"
+              spec:
+                containers:
+                  - name: burrow
+                    image: "{{ burrow_image }}"
+                    imagePullPolicy: IfNotPresent
+                    ports:
+                      - containerPort: 8000
+                    volumeMounts:
+                      - name: config
+                        mountPath: /etc/burrow
+                        readOnly: true
+                volumes:
+                  - name: config
+                    configMap:
+                      name: "{{ burrow_app_name }}-config"
+                      items:
+                        - key: burrow.toml
+                          path: burrow.toml
+
+    - name: Expose Burrow via LoadBalancer service
+      kubernetes.core.k8s:
+        state: absent
+        namespace: "{{ burrow_namespace }}"
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: "{{ burrow_app_name }}"
+            labels:
+              app: "{{ burrow_app_name }}"
+          spec:
+            type: LoadBalancer
+            loadBalancerIP: "{{ loadbalancer_ip }}"
+            ports:
+              - port: 8000
+                targetPort: 8000
+                protocol: TCP
+                name: http
+            selector:
+              app: "{{ burrow_app_name }}"

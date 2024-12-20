@@ -1,0 +1,21 @@
+[general]
+logdir = "/var/log/burrow"
+pidfile = "/var/run/burrow.pid"
+access-control-allow-origin = "*"
+
+[logging]
+level = "info"
+filename = ""
+maxsize = 100
+maxbackups = 30
+maxage = 10
+use-localtime = false
+use-compression = false
+
+[httpserver.default]
+address=":8080"
+
+[zookeeper]
+servers = ["kafka-zookeeper-client.kafka-new.svc.cluster.local:2181"]
+timeout=60
+root-path="/tmp"
