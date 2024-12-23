@@ -35,6 +35,16 @@
                 count: 1
                 config:
                   node.store.allow_mmap: false
+                podTemplate:
+                  spec:
+                    containers:
+                    - name: elasticsearch
+                      resources:
+                        limits:
+                          memory: 3Gi
+                        requests:
+                          memory: 3Gi
+                          cpu: 1
     - name: Ensure /other_hdd/elk directory exists
       ansible.builtin.file:
         path: /other_hdd/elk
