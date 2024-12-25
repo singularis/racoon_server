@@ -1,0 +1,118 @@
+---
+- name: Deploy Filebeat with RBAC and ECK CRD
+  hosts: localhost
+  become: false
+  vars_files:
+    - ../../vars.yaml
+  vars:
+    namespace: "{{ vars.all.vars.elk.namespace }}"
+    beat_name: "filebeat"
+    beat_version: "8.12.0"
+    elasticsearch_ref: "elasticsearch"
+
+  tasks:
+
+    - name: Ensure monitoring namespace exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ namespace }}"
+
+    - name: Create ServiceAccount for Filebeat
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: "{{ beat_name }}"
+            namespace: "{{ namespace }}"
+
+    - name: Create ClusterRole for Filebeat
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          metadata:
+            name: "{{ beat_name }}"
+          rules:
+            - apiGroups: [""]
+              resources: ["pods"]
+              verbs: ["get", "list", "watch"]
+            - apiGroups: [""]
+              resources: ["nodes"]
+              verbs: ["get", "list", "watch"]
+            - apiGroups: [""]
+              resources: ["namespaces"]
+              verbs: ["get", "list", "watch"]
+            - apiGroups: [""]
+              resources: ["services", "endpoints"]
+              verbs: ["get", "list", "watch"]
+
+    - name: Create ClusterRoleBinding for Filebeat
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: "{{ beat_name }}"
+          subjects:
+            - kind: ServiceAccount
+              name: "{{ beat_name }}"
+              namespace: "{{ namespace }}"
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: "{{ beat_name }}"
+
+    - name: Deploy Filebeat CR
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: beat.k8s.elastic.co/v1beta1
+          kind: Beat
+          metadata:
+            name: "{{ beat_name }}"
+            namespace: "{{ namespace }}"
+          spec:
+            type: filebeat
+            version: "{{ beat_version }}"
+            elasticsearchRef:
+              name: "{{ elasticsearch_ref }}"
+            config:
+              filebeat.autodiscover:
+                providers:
+                  - type: kubernetes
+                    hints.enabled: true
+                    hints.default_config:
+                      type: container
+                      paths:
+                        - "/var/log/containers/*-${data.kubernetes.container.id}.log"
+            daemonSet:
+              podTemplate:
+                spec:
+                  serviceAccountName: "{{ beat_name }}"
+                  securityContext:
+                    runAsUser: 0
+                    runAsGroup: 0
+                    fsGroup: 0
+                  volumes:
+                    - name: filebeat-data
+                      emptyDir: {}
+                    - name: varlog
+                      hostPath:
+                        path: /var/log
+                        type: Directory
+                  containers:
+                    - name: filebeat
+                      volumeMounts:
+                        - name: filebeat-data
+                          mountPath: "/usr/share/filebeat/data"
+                        - name: varlog
+                          mountPath: "/var/log"
+                          readOnly: true
