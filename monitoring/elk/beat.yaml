@@ -91,6 +91,7 @@
                     hints.enabled: true
                     hints.default_config:
                       type: container
+                      enabled: false
                       paths:
                         - "/var/log/containers/*-${data.kubernetes.container.id}.log"
             daemonSet:
