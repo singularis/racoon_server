@@ -12,6 +12,8 @@ spec:
     metadata:
       labels:
         app: gphoto-flask
+      annotations:
+        co.elastic.logs/enabled: "true"
     spec:
       containers:
         - name: gphoto-flask
