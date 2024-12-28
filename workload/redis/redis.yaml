@@ -1,0 +1,124 @@
+---
+- name: Install Redis Operator from OperatorHub.io
+  hosts: localhost
+  become: no
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    namespace: "{{ vars.all.vars.redis.namespace }}"
+    loadBalancerIP: "{{ vars.all.vars.redis.loadBalancerIP }}"
+
+  tasks:
+
+    - name: Check if OLM (Operator Lifecycle Manager) is already installed
+      kubernetes.core.k8s_info:
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: "clusterserviceversions.operators.coreos.com"
+      register: olm_check
+      ignore_errors: yes
+
+    - name: Install Operator Lifecycle Manager (OLM) if not present
+      shell: |
+        curl -sL https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.30.0/install.sh | bash -s v0.30.0
+      args:
+        executable: /bin/bash
+      when: olm_check.resources | length == 0
+
+    - name: Create Namespace for Redis
+      kubernetes.core.k8s:
+        name: "{{ namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Ensure Redis Operator is installed
+      kubernetes.core.k8s:
+        state: present
+        src: https://operatorhub.io/install/redis-operator.yaml
+
+
+    - name: Pause to allow Redis Operator to start
+      pause:
+        seconds: 60
+      when: not olm_check.failed
+
+    - name: Create ClusterRole for Redis Operator
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          metadata:
+            name: redis-operator-clusterrole
+          rules:
+            - apiGroups:
+                - "redis.redis.opstreelabs.in"
+              resources:
+                - "redissentinels"
+                - "redissentinels/status"
+                - "redisreplications"
+                - "redisreplications/status"
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+
+    - name: Bind ClusterRole to operator ServiceAccount
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: redis-operator-clusterrolebinding
+          subjects:
+            - kind: ServiceAccount
+              name: "redis-operator"
+              namespace: "operators"
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: redis-operator-clusterrole
+
+    - name: Deploy a basic Redis instance (standalone) with emptyDir storage
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: redis.redis.opstreelabs.in/v1beta1
+          kind: Redis
+          metadata:
+            name: redis
+            namespace: "{{ namespace }}"
+          spec:
+            mode: standalone
+            kubernetesConfig:
+              image: "quay.io/opstree/redis:v7.0.12"
+              imagePullPolicy: Always
+            persistence:
+              enabled: false
+
+    - name: Expose Redis through MetalLB
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: redis-metal-lb
+            namespace: "{{ namespace }}"
+          spec:
+            selector:
+              app: redis
+            ports:
+              - protocol: TCP
+                port: 6379
+                targetPort: 6379
+            type: LoadBalancer
+            loadBalancerIP: "{{ loadBalancerIP }}"

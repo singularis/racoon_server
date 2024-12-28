@@ -33,8 +33,15 @@
         kind: Namespace
         state: present
 
-    - name: Apply Grafana Operator manifest
-      shell: kubectl apply -f https://operatorhub.io/install/grafana-operator.yaml
+    - name: Ensure Grafana Operator is installed
+      kubernetes.core.k8s:
+        state: present
+        src: https://operatorhub.io/install/grafana-operator.yaml
+
+    - name: Pause to allow Redis Operator to start
+      pause:
+        seconds: 60
+      when: not olm_check.failed
 
     - name: Deploy Grafana Instance
       kubernetes.core.k8s:
