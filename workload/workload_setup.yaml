@@ -19,3 +19,5 @@
   import_playbook: ./postgres/postgres.yaml
 - name: redis
   import_playbook: ./redis/redis.yaml
+- name: nextcloud
+  import_playbook: ./nexcloud/nexcloud.yaml

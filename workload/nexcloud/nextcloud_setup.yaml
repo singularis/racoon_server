@@ -1,0 +1,9 @@
+---
+- name: "Nextcloud configuration"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+- name: postgres
+  import_playbook: ./postgres_nextcloud.yaml
+- name: nextcloud
+  import_playbook: ./nextcloud_setup.yaml

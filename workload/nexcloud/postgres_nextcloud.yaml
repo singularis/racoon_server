@@ -1,0 +1,72 @@
+---
+- name: Apply PostgreSQL Custom Resource
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ../vars.yaml
+  tasks:
+    - name: Apply PostgreSQL CRD
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: "acid.zalan.do/v1"
+          kind: "postgresql"
+          metadata:
+            name: "nextcloud-db"
+            namespace: "nextcloud"
+            labels:
+              team: acid
+          spec:
+            teamId: "acid"
+            postgresql:
+              version: "16"
+            numberOfInstances: 1
+            maintenanceWindows: []
+            volume:
+              size: "2Gi"
+            users:
+              nextcloud: []
+            databases:
+              nextcloud: nextcloud
+            allowedSourceRanges:
+              - 0.0.0.0/32
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "100Mi"
+              limits:
+                cpu: "500m"
+                memory: "500Mi"
+      register: result
+    - name: Create local directory for nextcloud-postgres
+      ansible.builtin.file:
+        path: /other/nextcloud_postgres
+        state: directory
+        mode: '0777'
+    - name: Create nextcloud_postgres PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        namespace: nextcloud
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: nextcloud-postgres-pvc
+            namespace: nextcloud
+          spec:
+            capacity:
+              storage: 10Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Recycle
+            local:
+              path: /other/nextcloud_postgres
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
