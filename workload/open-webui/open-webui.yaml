@@ -1,0 +1,208 @@
+---
+- name: Install OpenWebUI Helm Chart
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    helm_chart_repo: openwebui
+    helm_chart_repo_url: "https://open-webui.github.io/helm-charts"
+    helm_chart_ref: openwebui/open-webui
+    helm_chart_release_name: openwebui
+    helm_chart_namespace: "{{ vars.all.vars.openwebui.namespace }}"
+
+  tasks:
+    - name: Print imported OpenWebUI variables
+      ansible.builtin.debug:
+        var: vars.all.vars.openwebui
+
+    - name: Create namespace for OpenWebUI
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ helm_chart_namespace }}"
+        state: present
+
+    - name: Add OpenWebUI Helm chart repository
+      community.kubernetes.helm_repository:
+        name: "{{ helm_chart_repo }}"
+        repo_url: "{{ helm_chart_repo_url }}"
+        state: present
+
+    - name: Update Helm repository cache
+      command: helm repo update
+      changed_when: false
+
+    # ===============================
+    # MAIN OpenWebUI Data Storage Setup
+    # ===============================
+    - name: Create local directory for OpenWebUI data
+      ansible.builtin.file:
+        path: /other_hdd/openwebui
+        state: directory
+        mode: '0777'
+
+    - name: Create a PersistentVolume for OpenWebUI data
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: openwebui-data
+          spec:
+            capacity:
+              storage: "{{ vars.all.vars.openwebui.volume_size }}"
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local-storage
+            local:
+              path: /other_hdd/openwebui
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create a PersistentVolumeClaim for OpenWebUI data
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: openwebui-data-claim
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            storageClassName: local-storage
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: "{{ vars.all.vars.openwebui.volume_size }}"
+            volumeMode: Filesystem
+
+    # ===============================
+    # Pipelines Data Storage Setup
+    # ===============================
+    - name: Create local directory for OpenWebUI pipelines data
+      ansible.builtin.file:
+        path: /other_hdd/openwebui-pipelines
+        state: directory
+        mode: '0777'
+
+    - name: Create a PersistentVolume for OpenWebUI pipelines data
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: openwebui-pipelines-data
+          spec:
+            capacity:
+              storage: 2Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local-storage
+            local:
+              path: /other_hdd/openwebui-pipelines
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create a PersistentVolumeClaim for OpenWebUI pipelines data
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: open-webui-pipelines
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            storageClassName: local-storage
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 2Gi
+            volumeMode: Filesystem
+
+    # ===============================
+    # Patch the pipelines PVC with Helm ownership metadata
+    # ===============================
+    - name: Patch open-webui-pipelines PVC with Helm ownership
+      kubernetes.core.k8s:
+        state: present
+        merge_type: strategic-merge
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: open-webui-pipelines
+            namespace: "{{ helm_chart_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: Helm
+            annotations:
+              meta.helm.sh/release-name: "{{ helm_chart_release_name }}"
+              meta.helm.sh/release-namespace: "{{ helm_chart_namespace }}"
+
+    # ===============================
+    # Deploy (or Force Reapply) Helm Release
+    # ===============================
+    - name: Enforce reapply of OpenWebUI Helm release
+      community.kubernetes.helm:
+        name: "{{ helm_chart_release_name }}"
+        chart_ref: "{{ helm_chart_ref }}"
+        namespace: "{{ helm_chart_namespace }}"
+        state: present
+        wait: true
+        release_values:
+          persistence:
+            enabled: true
+            accessMode: ReadWriteOnce
+            existingClaim: openwebui-data-claim
+          pipelines:
+            enabled: true
+            existingClaim: open-webui-pipelines
+          service:
+            type: LoadBalancer
+            loadBalancerIP: "{{ vars.all.vars.openwebui.loadBalancerIP }}"
+          admin:
+            username: "{{ vars.all.vars.openwebui.admin_username }}"
+            password: "{{ vars.all.vars.openwebui.admin_password }}"
+
+    - name: Create OpenWebUI Service
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: openwebui-service
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            selector:
+              app.kubernetes.io/name: open-web-ui
+            ports:
+              - name: http
+                protocol: TCP
+                port: 8080
+                targetPort: 8080
+            type: LoadBalancer
+            loadBalancerIP: "{{ vars.all.vars.openwebui.loadBalancerIP }}"

@@ -13,9 +13,9 @@
     user: "{{ vars.all.vars.samba.user }}"
 
   tasks:
-    - name: Ensure /other_hdd/samba directory exists
+    - name: Ensure /other_ssd/samba directory exists
       ansible.builtin.file:
-        path: /other_hdd/samba
+        path: /other_ssd/samba
         state: directory
         mode: '0755'
     - name: Create Namespace for Samba
@@ -42,7 +42,7 @@
             persistentVolumeReclaimPolicy: Retain
             storageClassName: local-storage
             local:
-              path: /other_hdd/samba
+              path: /other_ssd/samba
             nodeAffinity:
               required:
                 nodeSelectorTerms:
