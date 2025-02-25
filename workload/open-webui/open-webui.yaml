@@ -205,7 +205,34 @@
                 targetPort: 8080
             type: LoadBalancer
             loadBalancerIP: "{{ vars.all.vars.openwebui.loadBalancerIP }}"
+    - name: Install iptables-persistent
+      ansible.builtin.package:
+        name: iptables-persistent
+        state: present
+      when: ansible_os_family == "Debian"
 
-
-            #ADD IP TABLES!!!
-            #sudo iptables -t nat -A POSTROUTING -o eno1 -s 192.168.1.0/16 -d 192.168.1.5 -j MASQUERADE
+    - name: Add iptables NAT MASQUERADE rule
+      community.general.iptables:
+        table: nat
+        chain: POSTROUTING
+        out_interface: "{{ outgoing_interface }}"
+        source: "{{ iptables_source_subnet }}"
+        destination: "{{ iptables_destination_ip }}"
+        jump: MASQUERADE
+        comment: "Masquerade traffic from {{ iptables_source_subnet }} to {{ iptables_destination_ip }}"
+        state: present
+      register: iptables_rule_change
+    - name: Save iptables changes
+      ansible.builtin.command: iptables-save > /etc/iptables/rules.v4
+      args:
+        warn: false
+      when:
+        - ansible_os_family == "Debian"
+        - iptables_rule_change.changed
+    - name: Reload netfilter-persistent (Debian/Ubuntu)
+      ansible.builtin.service:
+        name: netfilter-persistent
+        state: reloaded
+      when:
+        - ansible_os_family == "Debian"
+        - iptables_rule_change.changed
