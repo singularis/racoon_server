@@ -1,0 +1,13 @@
+[Unit]
+Description=Jupyter Lab
+After=network.target
+
+[Service]
+Type=simple
+User={{ jupyter_user }}
+ExecStart={{ jupyter_exec_path }} lab --config={{ jupyter_home }}/.jupyter/jupyter_lab_config.py
+WorkingDirectory={{ jupyter_home }}
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,74 @@
+---
+- name: Basic Setup Playbook
+  hosts: localhost
+  become: yes
+  gather_facts: yes
+  vars:
+    jupyter_user: "dante"
+    jupyter_home: "/home/dante/jupiter"
+    jupyter_port: 8888
+    jupyter_password: "MySecret123!"
+    jupyter_service_name: "jupyterlab"
+    jupyter_exec_path: "/usr/local/bin/jupyter"
+
+  tasks:
+    - name: Install Jupyter
+      pip:
+        name:
+          - jupyterlab
+          - notebook
+        state: present
+        extra_args: --break-system-packages
+
+    - name: Generate hashed password for Jupyter
+      command: python3 -c "from jupyter_server.auth import passwd; print(passwd('{{ jupyter_password }}'))"
+      register: jupyter_hashed_password
+      changed_when: false
+
+    - name: Create .jupyter directory
+      file:
+        path: "{{ jupyter_home }}/.jupyter"
+        state: directory
+        owner: "{{ jupyter_user }}"
+        group: "{{ jupyter_user }}"
+        mode: '0755'
+
+    - name: Create Jupyter Lab config
+      copy:
+        dest: "{{ jupyter_home }}/.jupyter/jupyter_lab_config.py"
+        owner: "{{ jupyter_user }}"
+        group: "{{ jupyter_user }}"
+        mode: '0644'
+        content: |
+          c.ServerApp.ip = '0.0.0.0'
+          c.ServerApp.port = {{ jupyter_port }}
+          c.ServerApp.open_browser = False
+          c.ServerApp.password = '{{ jupyter_hashed_password.stdout }}'
+
+    - name: Create systemd service file for Jupyter Lab
+      template:
+        src: jupyterlab.service.j2
+        dest: "/etc/systemd/system/{{ jupyter_service_name }}.service"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
+
+    - name: Enable and start Jupyter Lab service
+      systemd:
+        name: "{{ jupyter_service_name }}"
+        enabled: true
+        state: started
+
+    - name: Wait for Jupyter Lab to be accessible (optional health check)
+      uri:
+        url: "http://localhost:{{ jupyter_port }}"
+        return_content: no
+        status_code: 200
+      register: jupyter_check
+      until: jupyter_check is succeeded
+      retries: 10
+      delay: 2
+      ignore_errors: yes

@@ -1,0 +1,14 @@
+---
+- name: Initial Setup Playbook
+  hosts: localhost
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Show message
+      debug:
+        msg: "Starting ansible instalation"
+- name: Include the Basic Setup playbook
+  import_playbook: ./basic.yaml
+- name: Include the Basic Setup playbook
+  import_playbook: ./jupiter.yaml
