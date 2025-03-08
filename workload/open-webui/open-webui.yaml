@@ -187,54 +187,34 @@
           admin:
             username: "{{ vars.all.vars.openwebui.admin_username }}"
             password: "{{ vars.all.vars.openwebui.admin_password }}"
-
-    - name: Create OpenWebUI Service
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: openwebui-service
-            namespace: "{{ helm_chart_namespace }}"
-          spec:
-            selector:
-              app.kubernetes.io/component: open-webui
-            ports:
-              - name: http
-                protocol: TCP
-                port: 8080
-                targetPort: 8080
-            type: LoadBalancer
-            loadBalancerIP: "{{ vars.all.vars.openwebui.loadBalancerIP }}"
     - name: Install iptables-persistent
       ansible.builtin.package:
         name: iptables-persistent
         state: present
       when: ansible_os_family == "Debian"
 
-#    - name: Add iptables NAT MASQUERADE rule
-#      community.general.iptables:
-#        table: nat
-#        chain: POSTROUTING
-#        out_interface: "{{ outgoing_interface }}"
-#        source: "{{ iptables_source_subnet }}"
-#        destination: "{{ iptables_destination_ip }}"
-#        jump: MASQUERADE
-#        comment: "Masquerade traffic from {{ iptables_source_subnet }} to {{ iptables_destination_ip }}"
-#        state: present
-#      register: iptables_rule_change
-#    - name: Save iptables changes
-#      ansible.builtin.command: iptables-save > /etc/iptables/rules.v4
-#      args:
-#        warn: false
-#      when:
-#        - ansible_os_family == "Debian"
-#        - iptables_rule_change.changed
-#    - name: Reload netfilter-persistent (Debian/Ubuntu)
-#      ansible.builtin.service:
-#        name: netfilter-persistent
-#        state: reloaded
-#      when:
-#        - ansible_os_family == "Debian"
-#        - iptables_rule_change.changed
+    - name: Add iptables NAT MASQUERADE rule
+      community.general.iptables:
+        table: nat
+        chain: POSTROUTING
+        out_interface: "{{ outgoing_interface }}"
+        source: "{{ iptables_source_subnet }}"
+        destination: "{{ iptables_destination_ip }}"
+        jump: MASQUERADE
+        comment: "Masquerade traffic from {{ iptables_source_subnet }} to {{ iptables_destination_ip }}"
+        state: present
+      register: iptables_rule_change
+    - name: Save iptables changes
+      ansible.builtin.command: iptables-save > /etc/iptables/rules.v4
+      args:
+        warn: false
+      when:
+        - ansible_os_family == "Debian"
+        - iptables_rule_change.changed
+    - name: Reload netfilter-persistent (Debian/Ubuntu)
+      ansible.builtin.service:
+        name: netfilter-persistent
+        state: reloaded
+      when:
+        - ansible_os_family == "Debian"
+        - iptables_rule_change.changed
