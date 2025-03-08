@@ -44,7 +44,7 @@
             namespace: "{{ helm_chart_namespace }}"
           spec:
             capacity:
-              storage: 500Mi
+              storage: 5000Mi
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
@@ -67,6 +67,8 @@
         state: present
         wait: true
         release_values:
+          image:
+            tag: "latest"
           adlists: "{{ adlists }}"
           whitelist: "{{ whitelist }}"
           adminPassword: "{{ vars.all.vars.pi_hole.password }}"
