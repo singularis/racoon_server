@@ -170,6 +170,8 @@
         state: present
         wait: true
         release_values:
+          image:
+            tag: "latest"
           ollama:
             enabled: false
           persistence:
