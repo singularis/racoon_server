@@ -14,7 +14,7 @@ echo "Installing software prerequisites for Ansible..."
 sudo apt install fish -y
 # Install dependencies
 apt-get install -y software-properties-common
-sudo apt install cockpit
+sudo apt install -y cockpit
 sudo systemctl start cockpit
 sudo systemctl enable cockpit
 
@@ -31,8 +31,8 @@ net.ipv4.ip_forward = 1
 EOF
 sudo sysctl --system
 sysctl net.ipv4.ip_forward
-export KUBERNETES_VERSION=v1.31
-export CRIO_VERSION=v1.30
+export KUBERNETES_VERSION=v1.32
+export CRIO_VERSION=v1.32
 apt-get install -y software-properties-common curl
 curl -fsSL https://pkgs.k8s.io/core:/stable:/$KUBERNETES_VERSION/deb/Release.key |
     gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
@@ -52,12 +52,12 @@ modprobe br_netfilter
 sysctl -w net.ipv4.ip_forward=1
 sudo apt-mark hold kubelet kubeadm kubectl
 sudo systemctl enable --now kubelet
-sudo apt install cockpit-pcp
+sudo apt install -y cockpit-pcp
 sudo systemctl enable cockpit --now
 
 #RPI
 sudo apt install -y git cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib libusb-1.0-0-dev
-sudo apt install build-essential rkdeveloptool
+sudo apt install -y build-essential rkdeveloptool
 git clone https://github.com/raspberrypi/pico-sdk.git
 cd pico-sdk
 git submodule update --init

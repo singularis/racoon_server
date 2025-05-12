@@ -4,8 +4,8 @@ net.ipv4.ip_forward = 1
 EOF
 sudo sysctl --system
 sysctl net.ipv4.ip_forward
-export KUBERNETES_VERSION=v1.31
-export CRIO_VERSION=v1.30
+export KUBERNETES_VERSION=v1.32
+export CRIO_VERSION=v1.32
 apt-get install -y software-properties-common curl
 curl -fsSL https://pkgs.k8s.io/core:/stable:/$KUBERNETES_VERSION/deb/Release.key |
     gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg

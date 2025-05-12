@@ -1,0 +1,139 @@
+---
+- name: Install Jenkins Helm Chart
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    helm_chart_repo: jenkins
+    helm_chart_repo_url: https://charts.jenkins.io
+    helm_chart_ref: jenkins/jenkins
+    helm_chart_release_name: jenkins
+    helm_chart_namespace: "{{ vars.all.vars.jenkins.namespace }}"
+
+  tasks:
+    - name: Print imported variables
+      ansible.builtin.debug:
+        var: vars.all.vars.jenkins
+
+    - name: Create namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ helm_chart_namespace }}"
+        state: present
+
+    - name: Add Helm chart repository
+      community.kubernetes.helm_repository:
+        name: "{{ helm_chart_repo }}"
+        repo_url: "{{ helm_chart_repo_url }}"
+
+    - name: Create local directory for Jenkins
+      ansible.builtin.file:
+        path: /other_hdd/jenkins
+        state: directory
+        mode: '0777'
+
+    - name: Create StorageClass for local storage
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: local-storage
+          provisioner: kubernetes.io/no-provisioner
+          volumeBindingMode: WaitForFirstConsumer
+
+    - name: Create a PersistentVolume for Jenkins
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: jenkins-data
+          spec:
+            capacity:
+              storage: "{{ vars.all.vars.jenkins.volume_size }}"
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Delete
+            local:
+              path: /other_hdd/jenkins
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create a PersistentVolumeClaim for Jenkins
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: jenkins-data-claim
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: "{{ vars.all.vars.jenkins.volume_size }}"
+
+    - name: Wait for PVC to be bound
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        name: jenkins-data-claim
+        namespace: "{{ helm_chart_namespace }}"
+      register: pvc_status
+      until: pvc_status.resources[0].status.phase == 'Bound'
+      retries: 12
+      delay: 5
+
+    - name: Install Jenkins Helm chart
+      community.kubernetes.helm:
+        name: "{{ helm_chart_release_name }}"
+        chart_ref: "{{ helm_chart_ref }}"
+        namespace: "{{ helm_chart_namespace }}"
+        state: present
+        wait: true
+        release_values:
+          controller:
+            serviceType: LoadBalancer
+            loadBalancerIP: "{{ vars.all.vars.jenkins.loadBalancerIP }}"
+            admin:
+              username: "{{ vars.all.vars.jenkins.admin_username }}"
+              password: "{{ vars.all.vars.jenkins.admin_password }}"
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+              limits:
+                cpu: "1000m"
+                memory: "2Gi"
+          persistence:
+            enabled: true
+            existingClaim: jenkins-data-claim
+            storageClass: local-storage
+          rbac:
+            create: true
+          installPlugins:
+            - kubernetes:
+            - workflow-aggregator
+            - git
+            - configuration-as-code
+          additionalPlugins:
+            - kubernetes-cli
+            - kubernetes-credentials
+            - kubernetes-credentials-provider
+          JCasC:
+            enabled: false 
