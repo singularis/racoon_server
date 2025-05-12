@@ -167,6 +167,30 @@
             username: "{{ vars.all.vars.jira.db_user }}"
             password: "{{ vars.all.vars.jira.db_password }}"
 
+    - name: Create LoadBalancer service for Jira
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ helm_chart_namespace }}"
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: jira-lb
+            labels:
+              app.kubernetes.io/instance: jira
+              app.kubernetes.io/name: jira
+          spec:
+            type: LoadBalancer
+            loadBalancerIP: "{{ vars.all.vars.jira.loadBalancerIP }}"
+            ports:
+              - name: http
+                port: 80
+                targetPort: http
+                protocol: TCP
+            selector:
+              app.kubernetes.io/instance: jira
+              app.kubernetes.io/name: jira
+
     - name: Install Jira Helm chart
       community.kubernetes.helm:
         name: "{{ helm_chart_release_name }}"
@@ -179,9 +203,8 @@
           ingress:
             create: false
           service:
-            type: LoadBalancer
+            type: ClusterIP
             port: 80
-            loadBalancerIP: "{{ vars.all.vars.jira.loadBalancerIP }}"
           jira:
             adminUser: "{{ vars.all.vars.jira.admin_username }}"
             adminPassword: "{{ vars.all.vars.jira.admin_password }}"
