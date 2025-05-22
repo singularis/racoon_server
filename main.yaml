@@ -25,3 +25,5 @@
   import_playbook: ./workload/workload_setup.yaml
 - name: Monitoring setup
   import_playbook: monitoring/monitoring_setup.yaml
+- name: Configure Node Failure Handling
+  import_playbook: ./server_configration/kube_node_failure.yaml

@@ -1,0 +1,48 @@
+---
+- name: Configure Node Failure Handling
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Create Node Failure Detection ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: node-failure-detection
+            namespace: kube-system
+          data:
+            node-monitor-grace-period: "40s"
+            node-monitor-period: "5s"
+            pod-eviction-timeout: "5m"
+
+    - name: Create Pod Disruption Budget
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: policy/v1
+          kind: PodDisruptionBudget
+          metadata:
+            name: global-pdb
+            namespace: default
+          spec:
+            minAvailable: 1
+            selector:
+              matchLabels: {}
+
+    - name: Configure kubelet for faster node failure detection
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: kubelet-config
+            namespace: kube-system
+          data:
+            kubelet: |
+              nodeStatusUpdateFrequency: 4s
+              nodeStatusReportFrequency: 1m
+              nodeLeaseDurationSeconds: 40
