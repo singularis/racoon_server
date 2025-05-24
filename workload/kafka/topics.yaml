@@ -135,7 +135,7 @@
           apiVersion: kafka.strimzi.io/v1beta2
           kind: KafkaTopic
           metadata:
-            name: delete_food
+            name: delete-food
             namespace: kafka-new
             labels:
               strimzi.io/cluster: kafka-new
@@ -189,7 +189,7 @@
           apiVersion: kafka.strimzi.io/v1beta2
           kind: KafkaTopic
           metadata:
-            name: get_today_data
+            name: get-today-data
             namespace: kafka-new
             labels:
               strimzi.io/cluster: kafka-new
@@ -261,7 +261,7 @@
           apiVersion: kafka.strimzi.io/v1beta2
           kind: KafkaTopic
           metadata:
-            name: send_today_data
+            name: send-today-data
             namespace: kafka-new
             labels:
               strimzi.io/cluster: kafka-new

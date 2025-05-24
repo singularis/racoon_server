@@ -1,4 +1,44 @@
 ---
+- name: Create storage directories on all cluster nodes
+  hosts: kafka_cluster
+  become: yes
+  tasks:
+    - name: Create base Kafka directory
+      ansible.builtin.file:
+        path: /other/kafka
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Create directories for Kafka brokers storage
+      ansible.builtin.file:
+        path: "/other/kafka/broker-{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      loop: [0, 1, 2]
+
+    - name: Create directories for Kafka controllers storage
+      ansible.builtin.file:
+        path: "/other/kafka/controller-{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      loop: [0, 1, 2]
+
+    - name: Verify directories were created
+      ansible.builtin.find:
+        paths: /other/kafka
+        file_type: directory
+      register: kafka_dirs
+
+    - name: Display created directories
+      ansible.builtin.debug:
+        msg: "Created directories: {{ kafka_dirs.files | map(attribute='path') | list }}"
+
 - name: Install and Configure Kafka Operator on Kubernetes
   hosts: localhost
   tasks:
@@ -30,7 +70,111 @@
       retries: 60
       delay: 20
 
-    - name: Deploy Kafka Cluster
+    - name: Get cluster nodes
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+      register: cluster_nodes
+
+    - name: Create PVs for Kafka brokers
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "kafka-broker-pv-{{ item.0 }}-{{ item.1.metadata.name }}"
+          spec:
+            capacity:
+              storage: 2Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Delete
+            storageClassName: ""
+            local:
+              path: "/other/kafka/broker-{{ item.0 }}"
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "{{ item.1.metadata.name }}"
+      loop: "{{ range(0, 3) | list | product(cluster_nodes.resources) | list }}"
+
+    - name: Create PVs for Kafka controllers
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "kafka-controller-pv-{{ item.0 }}-{{ item.1.metadata.name }}"
+          spec:
+            capacity:
+              storage: 1Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Delete
+            storageClassName: ""
+            local:
+              path: "/other/kafka/controller-{{ item.0 }}"
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "{{ item.1.metadata.name }}"
+      loop: "{{ range(0, 3) | list | product(cluster_nodes.resources) | list }}"
+
+    - name: Create KafkaNodePool for controllers
+      kubernetes.core.k8s:
+        state: present
+        namespace: kafka-new
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaNodePool
+          metadata:
+            name: controller
+            labels:
+              strimzi.io/cluster: kafka
+          spec:
+            replicas: 3
+            roles:
+              - controller
+            storage:
+              type: persistent-claim
+              size: 1Gi
+              deleteClaim: true
+              class: ""
+
+    - name: Create KafkaNodePool for brokers
+      kubernetes.core.k8s:
+        state: present
+        namespace: kafka-new
+        definition:
+          apiVersion: kafka.strimzi.io/v1beta2
+          kind: KafkaNodePool
+          metadata:
+            name: broker
+            labels:
+              strimzi.io/cluster: kafka
+          spec:
+            replicas: 3
+            roles:
+              - broker
+            storage:
+              type: persistent-claim
+              size: 2Gi
+              deleteClaim: true
+              class: ""
+
+    - name: Deploy Kafka Cluster (KRaft mode)
       kubernetes.core.k8s:
         state: present
         namespace: kafka-new
@@ -39,9 +183,11 @@
           kind: Kafka
           metadata:
             name: kafka
+            annotations:
+              strimzi.io/node-pools: enabled
+              strimzi.io/kraft: enabled
           spec:
             kafka:
-              replicas: 2
               listeners:
                 - name: external
                   port: 9094
@@ -49,103 +195,26 @@
                   tls: false
                   overrides:
                     bootstrap:
-                      nodePort: 30092
+                      nodePort: 32686
                     brokers:
                       - broker: 0
                         nodePort: 30093
+                      - broker: 1
+                        nodePort: 30094
+                      - broker: 2
+                        nodePort: 30095
               config:
-                offsets.topic.replication.factor: 1
-                transaction.state.log.replication.factor: 1
-                transaction.state.log.min.isr: 1
-                zookeeper.session.timeout.ms: 6000
+                offsets.topic.replication.factor: 3
+                transaction.state.log.replication.factor: 3
+                transaction.state.log.min.isr: 2
+                default.replication.factor: 3
+                min.insync.replicas: 2
+                inter.broker.protocol.version: "3.8"
+                log.message.format.version: "3.8"
                 request.timeout.ms: 6000
                 controlled.shutdown.max.retries: 3
                 controlled.shutdown.retry.backoff.ms: 5000
-              storage:
-                type: persistent-claim
-                size: 2Gi
-                deleteClaim: true
-            zookeeper:
-              replicas: 2
-              config:
-                initLimit: 10
-                syncLimit: 5
-                tickTime: 2000
-                minSessionTimeout: 4000
-              storage:
-                type: persistent-claim
-                size: 1Gi
-                deleteClaim: true
             entityOperator:
               topicOperator: {}
               userOperator: {}
 
-    - name: Create PVs for Kafka
-      kubernetes.core.k8s:
-        state: present
-        namespace: kafka
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: "kafka-pv-{{ item }}"
-          spec:
-            capacity:
-              storage: 2Gi
-            volumeMode: Filesystem
-            accessModes:
-              - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Delete
-            local:
-              path: "/other/kafka/kafka-{{ item }}"
-            nodeAffinity:
-              required:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - "racoon"
-      loop: [0,1]
-
-    - name: Create PVs for Zookeeper
-      kubernetes.core.k8s:
-        state: present
-        namespace: kafka
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: "zookeeper-pv-{{ item }}"
-          spec:
-            capacity:
-              storage: 1Gi
-            volumeMode: Filesystem
-            accessModes:
-              - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Delete
-            local:
-              path: "/other/zookeeper/zookeeper-{{ item }}"
-            nodeAffinity:
-              required:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - "racoon"
-      loop: [0,1]
-
-    - name: Create directories for Kafka storage
-      ansible.builtin.file:
-        path: "/other/kafka/kafka-{{ item }}"
-        state: directory
-        mode: '0755'
-      loop: [0,1]
-
-    - name: Create directories for Zookeeper storage
-      ansible.builtin.file:
-        path: "/other/zookeeper/zookeeper-{{ item }}"
-        state: directory
-        mode: '0755'
-      loop: [0,1]
