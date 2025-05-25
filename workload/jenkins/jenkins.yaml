@@ -99,6 +99,26 @@
       retries: 12
       delay: 5
 
+    - name: Create ClusterIP Service for Jenkins (for ngrok communication)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: jenkins-ngrok-service
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            type: ClusterIP
+            ports:
+              - name: http
+                port: 8080
+                targetPort: 8080
+                protocol: TCP
+            selector:
+              app.kubernetes.io/component: jenkins-controller
+              app.kubernetes.io/instance: jenkins
+
     - name: Install Jenkins Helm chart
       community.kubernetes.helm:
         name: "{{ helm_chart_release_name }}"
@@ -108,6 +128,7 @@
         wait: true
         release_values:
           controller:
+            jenkinsUriPrefix: "/jenkins"
             serviceType: LoadBalancer
             loadBalancerIP: "{{ vars.all.vars.jenkins.loadBalancerIP }}"
             admin:

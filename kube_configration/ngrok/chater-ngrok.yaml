@@ -46,3 +46,10 @@
                           name: ngrok-chater-ui
                           port:
                             number: 5000
+                    - path: /jenkins
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: jenkins-ngrok-service
+                          port:
+                            number: 8080
