@@ -66,6 +66,7 @@
         namespace: "{{ helm_chart_namespace }}"
         state: present
         wait: true
+        update_repo_cache: true
         release_values:
           image:
             tag: "latest"
@@ -85,8 +86,8 @@
             - 1.1.1.1
           resources:
             limits:
-              cpu: 500m
-              memory: 1024Mi
+              cpu: 1000m
+              memory: 2024Mi
             requests:
               cpu: 100m
               memory: 128Mi
