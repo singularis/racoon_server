@@ -44,7 +44,7 @@
             namespace: "{{ helm_chart_namespace }}"
           spec:
             capacity:
-              storage: 5000Mi
+              storage: 5Gi
             volumeMode: Filesystem
             accessModes:
               - ReadWriteOnce
@@ -75,8 +75,37 @@
           adminPassword: "{{ vars.all.vars.pi_hole.password }}"
           persistentVolumeClaim:
             enabled: true
+            size: 5Gi
           extraEnvVars:
             DNSMASQ_USER: "root"
+            CACHE_SIZE: "10000"
+            DNS_FQDN_REQUIRED: "false"
+            DNS_BOGUS_PRIV: "false"
+            DNSSEC: "false"
+            CONDITIONAL_FORWARDING: "false"
+            PIHOLE_DNS_1: "8.8.8.8"
+            PIHOLE_DNS_2: "1.1.1.1"
+            QUERY_LOGGING: "false"
+            INSTALL_WEB_INTERFACE: "true"
+            INSTALL_WEB_SERVER: "true"
+            LIGHTTPD_ENABLED: "true"
+            BLOCKING_ENABLED: "true"
+            WEB_PORT: "80"
+            FTLCONF_MAXDBDAYS: "7"
+            FTLCONF_DBIMPORT: "yes"
+            FTLCONF_MAXLOGAGE: "24.0"
+            FTLCONF_PRIVACYLEVEL: "0"
+            FTLCONF_IGNORE_LOCALHOST: "no"
+            FTLCONF_AAAA_QUERY_ANALYSIS: "yes"
+            FTLCONF_ANALYZE_ONLY_A_AND_AAAA: "false"
+            FTLCONF_DBFILE: "/etc/pihole/pihole-FTL.db"
+            FTLCONF_LOGFILE: "/var/log/pihole-FTL.log"
+            FTLCONF_PIDFILE: "/var/run/pihole-FTL.pid"
+            FTLCONF_PORTFILE: "/var/run/pihole-FTL.port"
+            FTLCONF_SOCKETFILE: "/var/run/pihole/FTL.sock"
+            FTLCONF_SETUPVARSFILE: "/etc/pihole/setupVars.conf"
+            FTLCONF_MACVENDORDB: "/etc/pihole/macvendor.db"
+            FTLCONF_GRAVITYDB: "/etc/pihole/gravity.db"
           podDnsConfig:
             enabled: true
             policy: "None"
@@ -86,11 +115,11 @@
             - 1.1.1.1
           resources:
             limits:
-              cpu: 1000m
-              memory: 2024Mi
+              cpu: 2000m
+              memory: 4Gi
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 500m
+              memory: 1Gi
 
     - name: Deploy pi-hole DNS MetaLB
       kubernetes.core.k8s:
