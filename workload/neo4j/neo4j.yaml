@@ -1,0 +1,131 @@
+---
+- name: Install Neo4j Helm Chart
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    helm_chart_repo: neo4j
+    helm_chart_repo_url: https://helm.neo4j.com/neo4j
+    helm_chart_ref: neo4j/neo4j
+    helm_chart_release_name: neo4j
+    helm_chart_namespace: "{{ vars.all.vars.neo4j.namespace }}"
+    loadBalancerIP: "{{ vars.all.vars.neo4j.loadBalancerIP }}"
+
+  tasks:
+    - name: Print imported variables
+      ansible.builtin.debug:
+        var: vars.all.vars.neo4j
+
+    - name: Create local storage directory
+      ansible.builtin.file:
+        path: /other/neo4j
+        state: directory
+
+    - name: Create namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ helm_chart_namespace }}"
+        state: present
+
+    - name: Add Helm chart repository
+      community.kubernetes.helm_repository:
+        name: "{{ helm_chart_repo }}"
+        repo_url: "{{ helm_chart_repo_url }}"
+
+    - name: PV data-neo4j
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: neo4j-pv
+          spec:
+            capacity:
+              storage: 10Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            local:
+              path: /other/neo4j
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: PVC data-neo4j
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: data-my-neo4j-release-0
+            namespace: "{{ helm_chart_namespace }}"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 10Gi
+            volumeName: neo4j-pv
+
+    - name: Install Neo4j Helm chart
+      community.kubernetes.helm:
+        name: "{{ helm_chart_release_name }}"
+        chart_ref: "{{ helm_chart_ref }}"
+        namespace: "{{ helm_chart_namespace }}"
+        state: present
+        wait: true
+        update_repo_cache: true
+        release_values:
+          neo4j:
+            name: "neo4j"
+            password: "{{ vars.all.vars.neo4j.password }}"
+            resources:
+              cpu: "500m"
+              memory: "2Gi"
+          volumes:
+            data:
+              mode: "volume"
+              volume:
+                persistentVolumeClaim:
+                  claimName: "data-my-neo4j-release-0"
+          services:
+            neo4j:
+              enabled: true
+              spec:
+                type: LoadBalancer
+                loadBalancerIP: "{{ loadBalancerIP }}"
+              ports:
+                http:
+                  enabled: true
+                https:
+                  enabled: false
+                bolt:
+                  enabled: true
+          config:
+            server.memory.heap.initial_size: "1G"
+            server.memory.heap.max_size: "1G"
+            server.memory.pagecache.size: "512M"
+            # Neo4j Server & Browser Configuration
+            server.http.enabled: "true"
+            server.http.listen_address: "0.0.0.0:7474"
+            server.https.enabled: "false"
+            server.bolt.enabled: "true"
+            server.bolt.listen_address: "0.0.0.0:7687"
+            # Neo4j Browser Settings
+            browser.allow_outgoing_connections: "true"
+            browser.credential_timeout: "0"
+            browser.retain_connection_credentials: "true"
+            # Server modules
+            server.unmanaged_extension_classes: ""
+            server.directories.plugins: "/var/lib/neo4j/plugins" 

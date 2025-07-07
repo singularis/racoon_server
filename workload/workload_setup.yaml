@@ -23,3 +23,5 @@
   import_playbook: ./nexcloud/nexcloud.yaml
 - name: open-webui
   import_playbook: ./open-webui/open-webui.yaml
+- name: neo4j
+  import_playbook: ./neo4j/neo4j.yaml
