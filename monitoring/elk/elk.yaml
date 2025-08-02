@@ -8,13 +8,13 @@
 
 
   vars:
-    namespace: "{{ vars.all.vars.elk.namespace }}"
+    elk_namespace: "{{ vars.all.vars.elk.namespace }}"
     loadBalancerIP: "{{ vars.all.vars.elk.loadBalancerIP }}"
     password: "{{ vars.all.vars.elk.password }}"
   tasks:
     - name: Create Namespace for Prometheus Operator
       kubernetes.core.k8s:
-        name: "{{ namespace }}"
+        name: "{{ elk_namespace }}"
         api_version: v1
         kind: Namespace
         state: present
@@ -23,7 +23,7 @@
     - name: Deploy Elasticsearch
       kubernetes.core.k8s:
         state: present
-        namespace: "{{ namespace }}"
+        namespace: "{{ elk_namespace }}"
         definition:
           apiVersion: elasticsearch.k8s.elastic.co/v1
           kind: Elasticsearch
@@ -36,6 +36,10 @@
                 count: 1
                 config:
                   node.store.allow_mmap: false
+                  xpack.security.enabled: true
+                  xpack.security.authc.anonymous.username: anonymous_user
+                  xpack.security.authc.anonymous.roles: superuser
+                  xpack.security.authc.anonymous.authz_exception: true
                 podTemplate:
                   spec:
                     nodeSelector:
@@ -44,9 +48,10 @@
                     - name: elasticsearch
                       resources:
                         limits:
-                          memory: 4Gi
+                          memory: 6Gi
+                          cpu: 1
                         requests:
-                          memory: 3Gi
+                          memory: 6Gi
                           cpu: 1
     - name: Ensure /other_hdd/elk directory exists
       become: yes
@@ -64,7 +69,7 @@
           kind: PersistentVolume
           metadata:
             name: elk-pv
-            namespace: "{{ namespace }}"
+            namespace: "{{ elk_namespace }}"
           spec:
             capacity:
               storage: 2Gi
@@ -85,7 +90,7 @@
     - name: Deploy Kibana
       kubernetes.core.k8s:
         state: present
-        namespace: "{{ namespace }}"
+        namespace: "{{ elk_namespace }}"
         definition:
           apiVersion: kibana.k8s.elastic.co/v1
           kind: Kibana
@@ -96,6 +101,19 @@
             count: 1
             elasticsearchRef:
               name: elasticsearch
+            podTemplate:
+              spec:
+                nodeSelector:
+                  kubernetes.io/hostname: racoon-gpu
+                containers:
+                - name: kibana
+                  livenessProbe: null
+            config:
+              xpack.security.enabled: true
+              xpack.security.authc.providers:
+                anonymous.anonymous1:
+                  order: 0
+                  credentials: "elasticsearch_anonymous_user"
     - name: Deploy Kibana MetaLB
       kubernetes.core.k8s:
         state: present
@@ -104,7 +122,7 @@
           kind: Service
           metadata:
             name: kibana-metal-lb
-            namespace: "{{ namespace }}"
+            namespace: "{{ elk_namespace }}"
           spec:
             selector:
               kibana.k8s.elastic.co/name: kibana
