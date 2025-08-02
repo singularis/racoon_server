@@ -7,9 +7,9 @@
     - ../../vars.yaml
 
   vars:
-    helm_chart_repo: ngrok
-    helm_chart_ref: ngrok/kubernetes-ingress-controller
-    helm_chart_repo_url: https://ngrok.github.io/kubernetes-ingress-controller
+    helm_chart_repo: ngrok-operator
+    helm_chart_ref: ngrok-operator/ngrok-operator
+    helm_chart_repo_url: https://ngrok.github.io/ngrok-operator
     helm_chart_release_name: ngrok-ingress-controller
     helm_chart_namespace: ngrok-ingress-controller
     apiKey: "{{ vars.all.vars.ngrok.NGROK_API_KEY }}"
