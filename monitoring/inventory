@@ -1,0 +1,41 @@
+[gpu_nodes]
+gpu ansible_host=192.168.1.5
+
+[gpu_nodes:vars]
+# GPU-specific monitoring variables
+gpu_monitoring_enabled=true
+nvidia_dcgm_enabled=true
+gpu_metrics_port=9400
+node_exporter_port=9100
+
+# Kubernetes node labels and taints
+kubernetes_node_role=gpu-worker
+gpu_vendor=nvidia
+gpu_scheduler=kubernetes.io/arch=amd64,nvidia.com/gpu=true
+
+# Resource limits for GPU monitoring
+monitoring_cpu_limit=500m
+monitoring_memory_limit=1Gi
+monitoring_gpu_limit=1
+
+# Namespace for GPU monitoring components
+monitoring_namespace=gpu-monitoring
+
+# Connection settings
+ansible_user=dante
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+ansible_python_interpreter=/usr/bin/python3
+
+[all:vars]
+# Global monitoring settings
+prometheus_retention_time=15d
+grafana_admin_password="{{ vault_grafana_password | default('admin') }}"
+elk_heap_size=2g
+
+# GPU monitoring specific dashboards and alerts
+enable_gpu_dashboards=true
+enable_gpu_alerts=true
+gpu_temperature_threshold=80
+gpu_memory_threshold=90
+gpu_utilization_threshold=95

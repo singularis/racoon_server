@@ -1,10 +1,11 @@
 ---
 - name: Install ELK Operator from OperatorHub.io
-  hosts: localhost
+  hosts: gpu_nodes
   become: no
 
   vars_files:
     - ../../vars.yaml
+
 
   vars:
     namespace: "{{ vars.all.vars.elk.namespace }}"
@@ -37,6 +38,8 @@
                   node.store.allow_mmap: false
                 podTemplate:
                   spec:
+                    nodeSelector:
+                      kubernetes.io/hostname: racoon-gpu
                     containers:
                     - name: elasticsearch
                       resources:
@@ -46,6 +49,9 @@
                           memory: 3Gi
                           cpu: 1
     - name: Ensure /other_hdd/elk directory exists
+      become: yes
+      vars:
+        ansible_become_pass: "{{ all.vars.worker_node.ansible_become_pass }}"
       ansible.builtin.file:
         path: /other_hdd/elk
         state: directory
@@ -75,7 +81,7 @@
                       - key: kubernetes.io/hostname
                         operator: In
                         values:
-                          - "racoon"
+                          - "racoon-gpu"
     - name: Deploy Kibana
       kubernetes.core.k8s:
         state: present

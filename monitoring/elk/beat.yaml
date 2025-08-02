@@ -1,6 +1,6 @@
 ---
 - name: Deploy Filebeat with RBAC and ECK CRD
-  hosts: localhost
+  hosts: gpu_nodes
   become: false
   vars_files:
     - ../../vars.yaml

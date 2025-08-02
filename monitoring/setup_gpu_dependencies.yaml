@@ -1,0 +1,31 @@
+---
+- name: Setup GPU node dependencies for Kubernetes management
+  hosts: gpu_nodes
+  become: yes
+  gather_facts: false
+  
+  vars_files:
+    - ../vars.yaml
+    
+  vars:
+    ansible_become_pass: "{{ all.vars.worker_node.ansible_become_pass }}"
+  
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        
+    - name: Install Python3 pip
+      apt:
+        name: python3-pip
+        state: present
+        
+    - name: Install Kubernetes Python library (breaking system packages)
+      pip:
+        name: 
+          - kubernetes
+          - PyYAML
+          - jsonpatch
+          - openshift
+        executable: pip3
+        extra_args: --break-system-packages
