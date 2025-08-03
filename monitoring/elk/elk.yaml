@@ -108,6 +108,15 @@
                 containers:
                 - name: kibana
                   livenessProbe: null
+                  readinessProbe:
+                    httpGet:
+                      path: /api/status
+                      port: 5601
+                      scheme: HTTPS
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
             config:
               xpack.security.enabled: true
               xpack.security.authc.providers:
