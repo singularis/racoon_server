@@ -168,6 +168,7 @@
         chart_ref: "{{ helm_chart_ref }}"
         namespace: "{{ helm_chart_namespace }}"
         state: present
+        force: true
         wait: true
         release_values:
           image:
@@ -179,7 +180,7 @@
             accessMode: ReadWriteOnce
             existingClaim: openwebui-data-claim
           pipelines:
-            enabled: true
+            enabled: false
             existingClaim: open-webui-pipelines
           service:
             type: NodePort
