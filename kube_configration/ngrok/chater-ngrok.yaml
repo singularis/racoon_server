@@ -53,3 +53,10 @@
                           name: jenkins-ngrok-service
                           port:
                             number: 8080
+                    - path: /autocomplete
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: eater-users-service
+                          port:
+                            number: 80
