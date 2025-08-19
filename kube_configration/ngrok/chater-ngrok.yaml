@@ -37,5 +37,5 @@
           spec:
             description: Created by Ansible - single upstream, no inline traffic policy
             upstream:
-              url: http://ngrok-chater-ui.chater-ui:5000
+              url: http://chater-reverse-proxy.chater-ui:80
             url: "https://{{ vars.all.vars.ngrok.NGROK_DOMAIN }}"

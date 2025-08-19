@@ -11,3 +11,5 @@
   import_playbook: ./ngrok/ngrok.yaml
 - name: Setup chater-ngrok
   import_playbook: ./ngrok/chater-ngrok.yaml
+- name: Setup ngrok-chater-ui
+  import_playbook: ./nginx/nginx-ngrok.yaml

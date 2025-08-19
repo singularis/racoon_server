@@ -1,0 +1,222 @@
+---
+- name: Deploy NGINX reverse proxy for chater-ui
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    namespace: chater-ui
+
+  tasks:
+    - name: Ensure namespace exists
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ namespace }}"
+        state: present
+
+    - name: Create ConfigMap for reverse proxy (NGINX)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: chater-reverse-proxy
+            namespace: "{{ namespace }}"
+          data:
+            nginx.conf: |
+              events {}
+              http {
+                include mime.types;
+                server_tokens off;
+                sendfile on;
+                tcp_nopush on;
+                tcp_nodelay on;
+                keepalive_timeout 65s;
+                client_max_body_size 10m;
+                client_body_timeout 30s;
+                send_timeout 30s;
+                gzip on;
+                gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+                map $http_x_forwarded_for $client_ip {
+                  ~^(?<first_ip>\d+\.\d+\.\d+\.\d+) $first_ip;
+                  default $remote_addr;
+                }
+
+                limit_req_zone $client_ip zone=req_per_ip:10m rate=10r/s;
+                limit_conn_zone $client_ip zone=conn_per_ip:10m;
+                server {
+                  listen 8080;
+                  server_name _;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_buffering on;
+                  proxy_buffers 8 16k;
+                  proxy_busy_buffers_size 32k;
+                  proxy_connect_timeout 5s;
+                  proxy_send_timeout 60s;
+                  proxy_read_timeout 60s;
+
+                  add_header X-Frame-Options "SAMEORIGIN" always;
+                  add_header X-Content-Type-Options "nosniff" always;
+                  add_header Referrer-Policy "no-referrer-when-downgrade" always;
+                  add_header X-XSS-Protection "1; mode=block" always;
+                  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+
+                  location = /healthz { return 200; }
+
+                  # Ensure /jenkins redirects to /jenkins/
+                  location = /jenkins { return 301 /jenkins/; }
+
+                  # Jenkins upstream on context path /jenkins
+                  location /jenkins/ {
+                    limit_req zone=req_per_ip burst=20 nodelay;
+                    limit_conn conn_per_ip 50;
+                    proxy_set_header X-Forwarded-Host $host;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_set_header X-Forwarded-Prefix /jenkins;
+                    proxy_set_header X-Forwarded-Port $server_port;
+                    proxy_http_version 1.1;
+                    proxy_pass http://jenkins-ngrok-service.chater-ui.svc.cluster.local:8080/jenkins/;
+                    proxy_redirect off;
+                    proxy_read_timeout 3600s;
+                    proxy_send_timeout 3600s;
+                  }
+
+                  # Autocomplete WebSocket API
+                  location /autocomplete {
+                    limit_req zone=req_per_ip burst=40 nodelay;
+                    limit_conn conn_per_ip 200;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_read_timeout 3600s;
+                    proxy_pass http://eater-users-internal.eater.svc.cluster.local:80;
+                  }
+
+                  # Default app
+                  location / {
+                    limit_req zone=req_per_ip burst=20 nodelay;
+                    limit_conn conn_per_ip 50;
+                    proxy_pass http://ngrok-chater-ui.chater-ui.svc.cluster.local:5000;
+                  }
+                }
+              }
+
+    - name: Create Deployment for reverse proxy (NGINX)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: chater-reverse-proxy
+            namespace: "{{ namespace }}"
+            labels:
+              app: chater-reverse-proxy
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app: chater-reverse-proxy
+            template:
+              metadata:
+                labels:
+                  app: chater-reverse-proxy
+                annotations:
+                  co.elastic.logs/enabled: "false"
+              spec:
+                securityContext:
+                  fsGroup: 101
+                  fsGroupChangePolicy: OnRootMismatch
+                initContainers:
+                  - name: init-nginx-perms
+                    image: busybox:latest
+                    imagePullPolicy: Always
+                    command: ["sh","-c"]
+                    args:
+                      - >
+                        mkdir -p /var/cache/nginx/client_temp /var/run /etc/nginx/conf.d &&
+                        chown -R 101:101 /var/cache/nginx /var/run /etc/nginx/conf.d
+                    volumeMounts:
+                      - name: nginx-cache
+                        mountPath: /var/cache/nginx
+                      - name: nginx-run
+                        mountPath: /var/run
+                      - name: nginx-conf-d
+                        mountPath: /etc/nginx/conf.d
+                containers:
+                  - name: nginx
+                    image: nginx:latest
+                    imagePullPolicy: Always
+                    ports:
+                      - containerPort: 8080
+                    readinessProbe:
+                      httpGet:
+                        path: /healthz
+                        port: 8080
+                      initialDelaySeconds: 3
+                      periodSeconds: 10
+                    livenessProbe:
+                      httpGet:
+                        path: /healthz
+                        port: 8080
+                      initialDelaySeconds: 10
+                      periodSeconds: 20
+                    resources:
+                      requests:
+                        cpu: 50m
+                        memory: 64Mi
+                      limits:
+                        cpu: 500m
+                        memory: 256Mi
+                    volumeMounts:
+                      - name: nginx-config
+                        mountPath: /etc/nginx/nginx.conf
+                        subPath: nginx.conf
+                      - name: nginx-cache
+                        mountPath: /var/cache/nginx
+                      - name: nginx-run
+                        mountPath: /var/run
+                      - name: nginx-conf-d
+                        mountPath: /etc/nginx/conf.d
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      runAsUser: 101
+                      runAsGroup: 101
+                      capabilities:
+                        drop: ["ALL"]
+                volumes:
+                  - name: nginx-config
+                    configMap:
+                      name: chater-reverse-proxy
+                  - name: nginx-cache
+                    emptyDir: {}
+                  - name: nginx-run
+                    emptyDir: {}
+                  - name: nginx-conf-d
+                    emptyDir: {}
+
+    - name: Create Service for reverse proxy
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: chater-reverse-proxy
+            namespace: "{{ namespace }}"
+          spec:
+            ports:
+              - name: http
+                port: 80
+                targetPort: 8080
+            selector:
+              app: chater-reverse-proxy
+
+
