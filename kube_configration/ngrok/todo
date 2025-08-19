@@ -1,0 +1,3 @@
+do it Remove ngrok Traffic Policy actions by doing path routing inside the cluster behind a single upstream:
+Create a small internal reverse proxy (e.g., NGINX/Caddy) that routes /, /jenkins, /autocomplete to your three services.
+Change kube_configration/ngrok/chater-ngrok.yaml to a single backend (the proxy service) and drop the extra paths. The operator will stop injecting a policy, so requests won’t count against the 2,000 Basic-actions cap.
