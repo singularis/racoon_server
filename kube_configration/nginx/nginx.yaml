@@ -25,6 +25,7 @@
             namespace: "{{ namespace }}"
           data:
             nginx.conf: |
+              pid /var/run/nginx/nginx.pid;
               events {}
               http {
                 include mime.types;
@@ -53,7 +54,8 @@
                   proxy_set_header Host $host;
                   proxy_set_header X-Real-IP $remote_addr;
                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header X-Forwarded-Proto https;
+                  proxy_set_header X-Forwarded-Port 443;
                   proxy_buffering on;
                   proxy_buffers 8 16k;
                   proxy_busy_buffers_size 32k;
@@ -77,9 +79,9 @@
                     limit_req zone=req_per_ip burst=20 nodelay;
                     limit_conn conn_per_ip 50;
                     proxy_set_header X-Forwarded-Host $host;
-                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_set_header X-Forwarded-Proto https;
                     proxy_set_header X-Forwarded-Prefix /jenkins;
-                    proxy_set_header X-Forwarded-Port $server_port;
+                    proxy_set_header X-Forwarded-Port 443;
                     proxy_http_version 1.1;
                     proxy_pass http://jenkins-ngrok-service.chater-ui.svc.cluster.local:8080/jenkins/;
                     proxy_redirect off;
@@ -140,8 +142,8 @@
                     command: ["sh","-c"]
                     args:
                       - >
-                        mkdir -p /var/cache/nginx/client_temp /var/run /etc/nginx/conf.d &&
-                        chown -R 101:101 /var/cache/nginx /var/run /etc/nginx/conf.d
+                        mkdir -p /var/cache/nginx/client_temp /var/run/nginx /etc/nginx/conf.d &&
+                        chown -R 101:101 /var/cache/nginx /var/run/nginx /etc/nginx/conf.d
                     volumeMounts:
                       - name: nginx-cache
                         mountPath: /var/cache/nginx
