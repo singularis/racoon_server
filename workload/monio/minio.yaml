@@ -1,0 +1,136 @@
+---
+- name: Prepare MinIO data directories on racoon and gpu
+  hosts: racoon,racoon-gpu
+  gather_facts: false
+  become: true
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    ansible_become_password: "{{ vars.all.vars.worker_node.ansible_become_pass }}"
+
+  tasks:
+    - name: Create MinIO data directories (non racoon-gpu)
+      ansible.builtin.file:
+        path: "{{ vars.all.vars.minio.data_path }}/drive{{ item }}"
+        state: directory
+        mode: '0777'
+      loop: [1, 2, 3, 4]
+      when: inventory_hostname != 'racoon-gpu'
+
+    - name: Create MinIO data directories (racoon-gpu via raw)
+      ansible.builtin.raw: "mkdir -p {{ vars.all.vars.minio.data_path }}/drive{{ item }} && chmod 0777 {{ vars.all.vars.minio.data_path }}/drive{{ item }}"
+      loop: [1, 2, 3, 4]
+      when: inventory_hostname == 'racoon-gpu'
+
+- name: Install distributed Bitnami MinIO across racoon and gpu
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    helm_chart_repo: bitnami
+    helm_chart_repo_url: "https://charts.bitnami.com/bitnami"
+    helm_chart_ref: bitnami/minio
+    storage_class_name: local-storage
+    pv_specs:
+      - { name: "minio-data-racoon-1", node: "racoon", drive: 1 }
+      - { name: "minio-data-racoon-2", node: "racoon", drive: 2 }
+      - { name: "minio-data-racoon-3", node: "racoon", drive: 3 }
+      - { name: "minio-data-racoon-4", node: "racoon", drive: 4 }
+      - { name: "minio-data-gpu-1", node: "racoon-gpu", drive: 1 }
+      - { name: "minio-data-gpu-2", node: "racoon-gpu", drive: 2 }
+      - { name: "minio-data-gpu-3", node: "racoon-gpu", drive: 3 }
+      - { name: "minio-data-gpu-4", node: "racoon-gpu", drive: 4 }
+
+  tasks:
+    - name: Ensure MinIO namespace exists
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ vars.all.vars.minio.namespace }}"
+        state: present
+
+    - name: Add Bitnami Helm repo
+      community.kubernetes.helm_repository:
+        name: "{{ helm_chart_repo }}"
+        repo_url: "{{ helm_chart_repo_url }}"
+        state: present
+
+    - name: Update helm repo cache
+      command: helm repo update
+      changed_when: false
+
+    - name: Create PVs on racoon and racoon-gpu (loop)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "{{ item.name }}"
+          spec:
+            capacity:
+              storage: 500Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: "{{ storage_class_name }}"
+            local:
+              path: "{{ vars.all.vars.minio.data_path }}/drive{{ item.drive }}"
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "{{ item.node }}"
+      loop: "{{ pv_specs }}"
+
+    - name: Install/upgrade MinIO release (distributed)
+      community.kubernetes.helm:
+        release_name: minio
+        chart_ref: "{{ helm_chart_ref }}"
+        namespace: "{{ vars.all.vars.minio.namespace }}"
+        state: present
+        update_repo_cache: true
+        force: true
+        wait: true
+        release_values:
+          mode: distributed
+          statefulset:
+            replicaCount: 2
+            zones: 2
+            drivesPerNode: 2
+          auth:
+            rootUser: "{{ vars.all.vars.minio.root_user }}"
+            rootPassword: "{{ vars.all.vars.minio.root_password }}"
+          persistence:
+            enabled: true
+            storageClass: "{{ storage_class_name }}"
+            size: 500Gi
+          service:
+            type: LoadBalancer
+            loadBalancerIP: "{{ vars.all.vars.minio.loadBalancerIP }}"
+            ports:
+              api: 9000
+              console: 9001
+          console:
+            service:
+              type: LoadBalancer
+              loadBalancerIP: "{{ vars.all.vars.minio.console_loadBalancerIP }}"
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - racoon
+                          - racoon-gpu

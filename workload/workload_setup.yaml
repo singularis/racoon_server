@@ -19,6 +19,9 @@
   import_playbook: ./postgres/postgres.yaml
 - name: redis
   import_playbook: ./redis/redis.yaml
+- name: minio
+  import_playbook: ./monio/minio.yaml
+  inventory: ../inventory/kafka-cluster-inventory.ini
 - name: nextcloud
   import_playbook: ./nexcloud/nexcloud.yaml
 - name: open-webui
