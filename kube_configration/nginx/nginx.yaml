@@ -71,24 +71,6 @@
 
                   location = /healthz { return 200; }
 
-                  # Ensure /jenkins redirects to /jenkins/
-                  location = /jenkins { return 301 /jenkins/; }
-
-                  # Jenkins upstream on context path /jenkins
-                  location /jenkins/ {
-                    limit_req zone=req_per_ip burst=20 nodelay;
-                    limit_conn conn_per_ip 50;
-                    proxy_set_header X-Forwarded-Host $host;
-                    proxy_set_header X-Forwarded-Proto https;
-                    proxy_set_header X-Forwarded-Prefix /jenkins;
-                    proxy_set_header X-Forwarded-Port 443;
-                    proxy_http_version 1.1;
-                    proxy_pass http://jenkins-ngrok-service.chater-ui.svc.cluster.local:8080/jenkins/;
-                    proxy_redirect off;
-                    proxy_read_timeout 3600s;
-                    proxy_send_timeout 3600s;
-                  }
-
                   # Autocomplete WebSocket API
                   location /autocomplete {
                     limit_req zone=req_per_ip burst=40 nodelay;
