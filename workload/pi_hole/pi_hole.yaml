@@ -68,6 +68,7 @@
         wait: true
         update_repo_cache: true
         release_values:
+          replicaCount: 2
           image:
             tag: "latest"
           adlists: "{{ adlists }}"
