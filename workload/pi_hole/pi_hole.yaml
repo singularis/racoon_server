@@ -161,5 +161,10 @@
               - protocol: TCP
                 port: 80
                 targetPort: 80
+            externalTrafficPolicy: Local
+            sessionAffinity: ClientIP
+            sessionAffinityConfig:
+              clientIP:
+                timeoutSeconds: 10800
             type: LoadBalancer
             loadBalancerIP: "{{ serviceWebIP }}"
