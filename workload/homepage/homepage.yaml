@@ -1,0 +1,266 @@
+---
+- name: Prepare Homepage config directory on racoon
+  hosts: racoon
+  gather_facts: false
+  become: true
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    ansible_become_password: "{{ vars.all.vars.worker_node.ansible_become_pass }}"
+
+  tasks:
+    - name: Create /other_mirrored/homepage directory
+      ansible.builtin.file:
+        path: /other_mirrored/homepage
+        state: directory
+        mode: '0777'
+
+- name: Deploy Homepage via Helm (local)
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  tasks:
+    - name: Add metrics-server Helm repo
+      kubernetes.core.helm_repository:
+        name: metrics-server
+        repo_url: https://kubernetes-sigs.github.io/metrics-server
+        state: present
+
+    - name: Update helm repo cache
+      command: helm repo update
+      changed_when: false
+
+    - name: Install/upgrade metrics-server
+      kubernetes.core.helm:
+        release_name: metrics-server
+        chart_ref: metrics-server/metrics-server
+        namespace: kube-system
+        state: present
+        wait: true
+        force: true
+        atomic: true
+        timeout: 600s
+        create_namespace: false
+        release_values:
+          args:
+            - --kubelet-insecure-tls
+            - --kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP
+      register: metrics_install
+      retries: 6
+      delay: 10
+      until: not metrics_install.failed
+
+    - name: Install/upgrade Homepage
+      kubernetes.core.helm:
+        release_name: homepage
+        chart_ref: "{{ playbook_dir }}"
+        namespace: "{{ vars.all.vars.homepage.namespace | default('homepage') }}"
+        state: present
+        wait: true
+        force: true
+        update_repo_cache: true
+        create_namespace: true
+        release_values:
+          namespace: "{{ vars.all.vars.homepage.namespace | default('homepage') }}"
+          image:
+            repository: ghcr.io/gethomepage/homepage
+            tag: latest
+            pullPolicy: Always
+          service:
+            type: LoadBalancer
+            port: 3000
+            loadBalancerIP: "{{ vars.all.vars.homepage.loadBalancerIP }}"
+          ingress:
+            enabled: false
+            host: "homepage.{{ vars.all.vars.gitlab.global_hosts_domain }}"
+            annotations:
+              gethomepage.dev/description: Dynamically Detected Homepage
+              gethomepage.dev/enabled: "true"
+              gethomepage.dev/group: Cluster Management
+              gethomepage.dev/icon: homepage.png
+              gethomepage.dev/name: Homepage
+          allowedHosts: "{{ vars.all.vars.homepage.loadBalancerIP }}:3000"
+          persistence:
+            enabled: false
+          serviceAccount:
+            create: true
+            name: homepage
+            createTokenSecret: true
+          config:
+            kubernetesYaml: |
+              mode: cluster
+            settingsYaml: |
+              title: "Racoon Dashboard"
+              theme: dark
+              color: slate
+              headerStyle: clean
+              useEqualHeights: true
+              hideErrors: false
+              background: "/custom/night-landscape.jpg"
+              providers:
+                prometheus:
+                  url: http://prometheus-operated.monitoring.svc:9090
+            customCss: |
+              /* Dark overlay to improve text readability over background */
+              body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.45);
+                pointer-events: none;
+                z-index: -1;
+              }
+              /* Subtle blur for cards */
+              #page_wrapper { backdrop-filter: blur(1.2px); }
+              .service-card { background-color: rgba(15, 23, 42, 0.35); }
+            bookmarksYaml: |
+              - Developer:
+                  - Github:
+                      - abbr: S
+                        href: https://github.com/singularis
+            servicesYaml: |
+              - Services:
+                  - Eater Stats:
+                      href: {{ vars.all.vars.homepage.homepagelinks.eater_stats }}
+                      abbr: ES
+                      icon: /custom/eateria.jpg
+                      description: Eater admin page
+                  - Chater:
+                      href: {{ vars.all.vars.homepage.homepagelinks.chater_external }}
+                      abbr: CH
+                      icon: /custom/chater.png
+                      description: Chat External
+                  - Memories:
+                      href: {{ vars.all.vars.homepage.homepagelinks.memories }}
+                      abbr: ME
+                      icon: /custom/google-photos-color.svg
+                      description: Dante memories
+                  - Pi-hole Admin:
+                      href: {{ vars.all.vars.homepage.homepagelinks.pihole_admin }}
+                      abbr: PH
+                      icon: pi-hole
+                      description: Pi-hole Admin
+                  - OpenWebUI:
+                      href: {{ vars.all.vars.homepage.homepagelinks.openwebui }}
+                      abbr: OW
+                      icon: openai
+                      description: OpenWebUI
+                  - Jupyter:
+                      href: {{ vars.all.vars.homepage.homepagelinks.jupyter }}
+                      abbr: JU
+                      icon: jupyter
+                      description: Jupyter Lab
+                  - Nextcloud Dashboard:
+                      href: {{ vars.all.vars.homepage.homepagelinks.nextcloud_dashboard }}
+                      abbr: NC
+                      icon: nextcloud
+                      description: Nextcloud
+                  - Pi Camera:
+                      href: {{ vars.all.vars.homepage.homepagelinks.pi_camera }}
+                      abbr: PC
+                      icon: /custom/raspberrypi-color.svg
+                      description: Pi Camera
+              - Development:
+                  - MinIO Console:
+                      href: {{ vars.all.vars.homepage.homepagelinks.minio_console_eater }}
+                      abbr: MI
+                      icon: minio
+                      description: Object Storage
+                  - Kafka UI:
+                      href: {{ vars.all.vars.homepage.homepagelinks.kafka_ui }}
+                      abbr: KF
+                      icon: /custom/kafka.svg
+                      description: Kafka UI
+                  - pgAdmin:
+                      href: {{ vars.all.vars.homepage.homepagelinks.pgadmin }}
+                      abbr: PG
+                      icon: postgres
+                      description: Postgres Admin
+                  - Neo4j Browser:
+                      href: {{ vars.all.vars.homepage.homepagelinks.neo4j_browser }}
+                      abbr: N4
+                      icon: neo4j
+                      description: Graph DB
+                  - Jenkins:
+                      href: {{ vars.all.vars.homepage.homepagelinks.jenkins }}
+                      abbr: JK
+                      icon: jenkins
+                      description: CI/CD
+                  - Loucst UI:
+                      href: {{ vars.all.vars.homepage.homepagelinks.locust_ui }}
+                      abbr: LC
+                      icon: /custom/locust.png
+                      description: Loucst UI
+                  - Postgres Operator UI:
+                      href: {{ vars.all.vars.homepage.homepagelinks.postgres_operator_ui }}
+                      abbr: PO
+                      icon: postgres
+                      description: Operator UI
+              - Monitoring:
+                  - Cockpit:
+                      href: {{ vars.all.vars.homepage.homepagelinks.cockpit }}
+                      abbr: CK
+                      icon: /custom/ubuntu-color.png
+                      description: Cockpit
+                  - Grafana:
+                      href: {{ vars.all.vars.homepage.homepagelinks.grafana_chater_ui }}
+                      abbr: GF
+                      icon: grafana
+                      description: Chater UI Metrics
+                  - Kibana Discover:
+                      href: {{ vars.all.vars.homepage.homepagelinks.kibana_discover }}
+                      abbr: KB
+                      icon: kibana
+                      description: Logs Discover
+                  - Netdata Cloud:
+                      href: {{ vars.all.vars.homepage.homepagelinks.netdata_cloud }}
+                      abbr: ND
+                      icon: netdata
+                      description: Netdata Cloud
+                  - Kubernetes Dashboard:
+                      href: {{ vars.all.vars.homepage.homepagelinks.k8s_dashboard }}
+                      abbr: KD
+                      icon: kubernetes
+                      description: Kubernetes Dashboard
+                  - Main Router:
+                      href: {{ vars.all.vars.homepage.homepagelinks.main_router }}
+                      abbr: MR
+                      icon: /custom/router-main.svg
+                      description: Main Router
+                  - Vendor Router:
+                      href: {{ vars.all.vars.homepage.homepagelinks.vendor_router }}
+                      abbr: VR
+                      icon: /custom/router-vendor.svg
+                      description: Vendor Router
+            widgetsYaml: |
+              - logo:
+                  text: Racoon
+              - greeting:
+                  text_size: xl
+                  text: "Hi, Dante"
+              - kubernetes:
+                  cluster:
+                    show: true
+                    cpu: true
+                    memory: true
+                    showLabel: true
+                    label: "cluster"
+                  nodes:
+                    show: true
+                    cpu: true
+                    memory: true
+                    temperature: true
+                    showLabel: true
+              - openmeteo:
+                  label: Warsaw
+                  latitude: 52.2297
+                  longitude: 21.0122
+                  units: metric
+
+
+

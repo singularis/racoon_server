@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homepage.labels" . | nindent 4 }}
+data:
+  kubernetes.yaml: |
+{{ .Values.config.kubernetesYaml | indent 4 }}
+  settings.yaml: |
+{{ .Values.config.settingsYaml | indent 4 }}
+  custom.css: |
+{{ .Values.config.customCss | indent 4 }}
+  custom.js: |
+{{ .Values.config.customJs | indent 4 }}
+  bookmarks.yaml: |
+{{ .Values.config.bookmarksYaml | indent 4 }}
+  services.yaml: |
+{{ .Values.config.servicesYaml | indent 4 }}
+  widgets.yaml: |
+{{ .Values.config.widgetsYaml | indent 4 }}
+{{- if .Values.config.dockerYaml }}
+  docker.yaml: |
+{{ .Values.config.dockerYaml | indent 4 }}
+{{- end }}
+

@@ -1,0 +1,51 @@
+namespace: homepage
+
+image:
+  repository: ghcr.io/gethomepage/homepage
+  tag: latest
+  pullPolicy: Always
+
+serviceAccount:
+  create: true
+  name: homepage
+  createTokenSecret: true
+
+rbac:
+  create: true
+
+service:
+  type: LoadBalancer
+  port: 3000
+  loadBalancerIP: ""
+
+# Optional IPs for service shortcuts in services.yaml
+grafanaIP: ""
+prometheusIP: ""
+minioIP: ""
+
+background:
+  enabled: true
+  hostPath: "/other_mirrored/homepage"
+  mountPath: "/app/public/custom"
+
+podScheduling:
+  nodeSelector:
+    kubernetes.io/hostname: racoon
+
+persistence:
+  enabled: false
+  existingClaim: ""
+  size: 5Gi
+  storageClassName: local-storage
+  mountPath: /app/config/logs
+
+config:
+  kubernetesYaml: |
+    mode: cluster
+  settingsYaml: ""
+  servicesYaml: ""
+  widgetsYaml: ""
+  customCss: ""
+  customJs: ""
+  dockerYaml: ""
+
