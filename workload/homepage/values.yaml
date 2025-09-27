@@ -49,3 +49,6 @@ config:
   customJs: ""
   dockerYaml: ""
 
+# Timeout for outbound HTTP requests (ms) used by siteMonitor/http widgets
+requestTimeoutMs: 10000
+

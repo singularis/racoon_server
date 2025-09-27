@@ -84,7 +84,7 @@
               gethomepage.dev/group: Cluster Management
               gethomepage.dev/icon: homepage.png
               gethomepage.dev/name: Homepage
-          allowedHosts: "{{ vars.all.vars.homepage.loadBalancerIP }}:3000"
+          allowedHosts: "{{ vars.all.vars.homepage.loadBalancerIP }}:3000,192.168.0.90:8080,192.168.0.1,192.168.2.1"
           persistence:
             enabled: false
           serviceAccount:
@@ -127,38 +127,55 @@
               - Services:
                   - Eater Stats:
                       href: {{ vars.all.vars.homepage.homepagelinks.eater_stats }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.eater_stats }}
                       abbr: ES
                       icon: /custom/eateria.jpg
                       description: Eater admin page
                   - Chater:
                       href: {{ vars.all.vars.homepage.homepagelinks.chater_external }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.chater_external }}
                       abbr: CH
                       icon: /custom/chater.png
                       description: Chat External
                   - Memories:
                       href: {{ vars.all.vars.homepage.homepagelinks.memories }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.memories }}
                       abbr: ME
                       icon: /custom/google-photos-color.svg
                       description: Dante memories
                   - Pi-hole Admin:
                       href: {{ vars.all.vars.homepage.homepagelinks.pihole_admin }}
+                      siteMonitor: {{ vars.all.vars.homepage.homepagelinks.pihole_admin }}
                       abbr: PH
                       icon: pi-hole
+                      widget:
+                        type: pihole
+                        url: http://{{ vars.all.vars.pi_hole.serviceWebIP }}
+                        version: 6
+                        key: {{ vars.all.vars.pi_hole.password }}
                       description: Pi-hole Admin
                   - OpenWebUI:
                       href: {{ vars.all.vars.homepage.homepagelinks.openwebui }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.openwebui }}
                       abbr: OW
                       icon: openai
                       description: OpenWebUI
                   - Jupyter:
                       href: {{ vars.all.vars.homepage.homepagelinks.jupyter }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.jupyter }}
                       abbr: JU
                       icon: jupyter
                       description: Jupyter Lab
                   - Nextcloud Dashboard:
                       href: {{ vars.all.vars.homepage.homepagelinks.nextcloud_dashboard }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.nextcloud_dashboard }}
                       abbr: NC
                       icon: nextcloud
+                      widget:
+                        type: nextcloud
+                        url: http://{{ vars.all.vars.nextcloud.loadBalancerIP }}
+                        username: {{ vars.all.vars.nextcloud.username }}
+                        password: {{ vars.all.vars.nextcloud.password }}
                       description: Nextcloud
                   - Pi Camera:
                       href: {{ vars.all.vars.homepage.homepagelinks.pi_camera }}
@@ -168,62 +185,80 @@
               - Development:
                   - MinIO Console:
                       href: {{ vars.all.vars.homepage.homepagelinks.minio_console_eater }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.minio_console_eater }}
                       abbr: MI
                       icon: minio
                       description: Object Storage
                   - Kafka UI:
                       href: {{ vars.all.vars.homepage.homepagelinks.kafka_ui }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.kafka_ui }}
                       abbr: KF
                       icon: /custom/kafka.svg
                       description: Kafka UI
                   - pgAdmin:
                       href: {{ vars.all.vars.homepage.homepagelinks.pgadmin }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.pgadmin }}
                       abbr: PG
                       icon: postgres
                       description: Postgres Admin
                   - Neo4j Browser:
                       href: {{ vars.all.vars.homepage.homepagelinks.neo4j_browser }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.neo4j_browser }}
                       abbr: N4
                       icon: neo4j
                       description: Graph DB
                   - Jenkins:
                       href: {{ vars.all.vars.homepage.homepagelinks.jenkins }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.jenkins }}
                       abbr: JK
                       icon: jenkins
                       description: CI/CD
                   - Loucst UI:
                       href: {{ vars.all.vars.homepage.homepagelinks.locust_ui }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.locust_ui }}
                       abbr: LC
                       icon: /custom/locust.png
                       description: Loucst UI
                   - Postgres Operator UI:
                       href: {{ vars.all.vars.homepage.homepagelinks.postgres_operator_ui }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.postgres_operator_ui }}
                       abbr: PO
                       icon: postgres
                       description: Operator UI
               - Monitoring:
                   - Cockpit:
                       href: {{ vars.all.vars.homepage.homepagelinks.cockpit }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.cockpit }}
                       abbr: CK
                       icon: /custom/ubuntu-color.png
                       description: Cockpit
                   - Grafana:
                       href: {{ vars.all.vars.homepage.homepagelinks.grafana_chater_ui }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.grafana_chater_ui }}
                       abbr: GF
                       icon: grafana
+                      widget:
+                        type: grafana
+                        version: 2
+                        url: http://{{ vars.all.vars.homepage.pings.grafana_chater_ui }}:3000
+                        username: admin
+                        password: {{ vars.all.vars.grafana.password }}
                       description: Chater UI Metrics
                   - Kibana Discover:
                       href: {{ vars.all.vars.homepage.homepagelinks.kibana_discover }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.kibana_discover }}
                       abbr: KB
                       icon: kibana
                       description: Logs Discover
                   - Netdata Cloud:
                       href: {{ vars.all.vars.homepage.homepagelinks.netdata_cloud }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.netdata_cloud }}
                       abbr: ND
                       icon: netdata
                       description: Netdata Cloud
                   - Kubernetes Dashboard:
                       href: {{ vars.all.vars.homepage.homepagelinks.k8s_dashboard }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.k8s_dashboard }}
                       abbr: KD
                       icon: kubernetes
                       description: Kubernetes Dashboard
