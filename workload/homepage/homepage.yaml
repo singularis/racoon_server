@@ -84,7 +84,7 @@
               gethomepage.dev/group: Cluster Management
               gethomepage.dev/icon: homepage.png
               gethomepage.dev/name: Homepage
-          allowedHosts: "{{ vars.all.vars.homepage.loadBalancerIP }}:3000,192.168.0.90:8080,192.168.0.1,192.168.2.1"
+          allowedHosts: "{{ vars.all.vars.homepage.loadBalancerIP }}:3000"
           persistence:
             enabled: false
           serviceAccount:
@@ -111,13 +111,18 @@
                 content: "";
                 position: fixed;
                 inset: 0;
-                background: rgba(0, 0, 0, 0.45);
+                background: rgba(0, 0, 0, 0.25);
                 pointer-events: none;
                 z-index: -1;
               }
-              /* Subtle blur for cards */
-              #page_wrapper { backdrop-filter: blur(1.2px); }
               .service-card { background-color: rgba(15, 23, 42, 0.35); }
+              body {
+                background-repeat: no-repeat;
+                background-position: center center;
+                background-size: contain; /* prevents upscaling; use cover if you prefer full bleed */
+                background-attachment: fixed;
+                image-rendering: auto;
+              }
             bookmarksYaml: |
               - Developer:
                   - Github:
@@ -139,13 +144,11 @@
                       description: Chat External
                   - Memories:
                       href: {{ vars.all.vars.homepage.homepagelinks.memories }}
-                      siteMonitor: {{ vars.all.vars.homepage.pings_full.memories }}
                       abbr: ME
                       icon: /custom/google-photos-color.svg
                       description: Dante memories
                   - Pi-hole Admin:
                       href: {{ vars.all.vars.homepage.homepagelinks.pihole_admin }}
-                      siteMonitor: {{ vars.all.vars.homepage.homepagelinks.pihole_admin }}
                       abbr: PH
                       icon: pi-hole
                       widget:
