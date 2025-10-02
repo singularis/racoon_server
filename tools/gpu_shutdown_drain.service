@@ -1,0 +1,19 @@
+[Unit]
+Description=Drain racoon-gpu pods before shutdown/reboot
+DefaultDependencies=no
+Requires=network-online.target kubelet.service
+After=network-online.target kubelet.service crio.service
+Before=shutdown.target reboot.target halt.target poweroff.target
+
+[Service]
+Type=oneshot
+Environment=KUBECONFIG=/etc/kubernetes/admin.conf
+ExecStart=/usr/bin/env bash /home/dante/racoon_server/tools/gpu_shutdown_drain.sh
+User=root
+Group=root
+TimeoutStartSec=5min
+
+[Install]
+WantedBy=halt.target poweroff.target reboot.target shutdown.target
+
+
