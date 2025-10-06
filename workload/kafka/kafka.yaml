@@ -152,6 +152,17 @@
               size: 1Gi
               deleteClaim: true
               class: ""
+            template:
+              pod:
+                spec:
+                  tolerations:
+                    - key: "dedicated"
+                      operator: "Equal"
+                      value: "control-plane"
+                      effect: "NoSchedule"
+                    - key: "node-role.kubernetes.io/control-plane"
+                      operator: "Exists"
+                      effect: "NoSchedule"
 
     - name: Create KafkaNodePool for brokers
       kubernetes.core.k8s:
@@ -173,6 +184,17 @@
               size: 2Gi
               deleteClaim: true
               class: ""
+            template:
+              pod:
+                spec:
+                  tolerations:
+                    - key: "dedicated"
+                      operator: "Equal"
+                      value: "control-plane"
+                      effect: "NoSchedule"
+                    - key: "node-role.kubernetes.io/control-plane"
+                      operator: "Exists"
+                      effect: "NoSchedule"
 
     - name: Deploy Kafka Cluster (KRaft mode)
       kubernetes.core.k8s:
