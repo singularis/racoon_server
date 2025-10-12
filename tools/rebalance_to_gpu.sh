@@ -11,8 +11,22 @@ set -euo pipefail
 # Requirements: kubectl available on racoon-gpu and node has permissions.
 
 GPU_NODE="racoon-gpu"
-WORKER_NODE="racoon-worker"
 RACOON_NODE="racoon"
+
+# Optional: specify worker node via environment; leave empty to skip worker actions
+WORKER_NODE="${WORKER_NODE:-}"
+
+# Ensure kubectl has access to cluster when run non-interactively
+if [[ -z "${KUBECONFIG:-}" && -f /etc/kubernetes/admin.conf ]]; then
+  export KUBECONFIG=/etc/kubernetes/admin.conf
+fi
+
+# Ensure PATH includes sbin locations when launched by systemd
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+
+# Wait configuration (can be overridden via environment)
+WAIT_TIMEOUT_SEC="${WAIT_TIMEOUT_SEC:-300}"
+WAIT_INTERVAL_SEC="${WAIT_INTERVAL_SEC:-5}"
 
 # Static exclusions: do not evict stateful/local PV backed services
 # Namespaces and names derived from repository manifests
@@ -35,6 +49,47 @@ declare -a EXCLUDE_PATTERNS=(
 )
 
 log() { printf "[%s] %s\n" "$(date +"%Y-%m-%dT%H:%M:%S")" "$*"; }
+
+wait_for_kube_api() {
+  local deadline=$((SECONDS + WAIT_TIMEOUT_SEC))
+  while (( SECONDS < deadline )); do
+    if kubectl version --request-timeout=5s >/dev/null 2>&1; then
+      return 0
+    fi
+    log "Waiting for Kubernetes API..."
+    sleep "$WAIT_INTERVAL_SEC"
+  done
+  log "Timed out waiting for Kubernetes API after ${WAIT_TIMEOUT_SEC}s"
+  return 1
+}
+
+wait_for_node_registration() {
+  local node=$1
+  local deadline=$((SECONDS + WAIT_TIMEOUT_SEC))
+  while (( SECONDS < deadline )); do
+    if kubectl get node "$node" -o name --request-timeout=5s >/dev/null 2>&1; then
+      return 0
+    fi
+    log "Waiting for node $node to register..."
+    sleep "$WAIT_INTERVAL_SEC"
+  done
+  log "Timed out waiting for node $node registration after ${WAIT_TIMEOUT_SEC}s"
+  return 1
+}
+
+wait_for_node_ready() {
+  local node=$1
+  local deadline=$((SECONDS + WAIT_TIMEOUT_SEC))
+  while (( SECONDS < deadline )); do
+    if node_ready "$node"; then
+      return 0
+    fi
+    log "Waiting for node $node to become Ready..."
+    sleep "$WAIT_INTERVAL_SEC"
+  done
+  log "Timed out waiting for node $node to be Ready after ${WAIT_TIMEOUT_SEC}s"
+  return 1
+}
 
 node_ready() {
   local node=$1
@@ -91,24 +146,18 @@ fast_label_gpu_preference() {
 }
 
 main() {
-  # Ensure kubectl works
-  if ! kubectl version >/dev/null 2>&1; then
-    log "kubectl not available or cannot connect"
-    exit 1
-  fi
+  # Ensure Kubernetes API is reachable and the GPU node is Ready
+  wait_for_kube_api || exit 1
+  wait_for_node_registration "$GPU_NODE" || exit 1
+  wait_for_node_ready "$GPU_NODE" || exit 1
 
   # Step 1: uncordon gpu node first
-  if node_ready "$GPU_NODE"; then
-    uncordon_if_needed "$GPU_NODE"
-  else
-    log "GPU node $GPU_NODE not Ready; aborting"
-    exit 1
-  fi
+  uncordon_if_needed "$GPU_NODE"
 
   fast_label_gpu_preference
 
   # Step 2: cordon worker and racoon to prevent new assignments
-  if kubectl get node "$WORKER_NODE" >/dev/null 2>&1; then
+  if [[ -n "${WORKER_NODE}" ]] && kubectl get node "$WORKER_NODE" >/dev/null 2>&1; then
     cordon_if_needed "$WORKER_NODE"
   fi
   if kubectl get node "$RACOON_NODE" >/dev/null 2>&1; then
@@ -138,8 +187,8 @@ main() {
 
   wait || true
 
-  # Step 4: uncordon worker
-  if kubectl get node "$WORKER_NODE" >/dev/null 2>&1; then
+  # Step 4: uncordon worker (if specified)
+  if [[ -n "${WORKER_NODE}" ]] && kubectl get node "$WORKER_NODE" >/dev/null 2>&1; then
     uncordon_if_needed "$WORKER_NODE"
   fi
 
