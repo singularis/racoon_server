@@ -82,6 +82,36 @@
                     proxy_pass http://eater-users-internal.eater.svc.cluster.local:80;
                   }
 
+                  # Ubuntu Cockpit Proxy
+                  location /cockpit_native/ {
+                    proxy_pass https://192.168.0.11:9090/;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto https;
+                    proxy_ssl_verify off;
+                    proxy_buffering off;
+                    proxy_read_timeout 86400s;
+                  }
+
+                  # Cockpit Assets and WebSocket
+                  location /cockpit/ {
+                    proxy_pass https://192.168.0.11:9090/cockpit/;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto https;
+                    proxy_ssl_verify off;
+                    proxy_buffering off;
+                    proxy_read_timeout 86400s;
+                  }
+
                   # Default app
                   location / {
                     limit_req zone=req_per_ip burst=20 nodelay;
@@ -135,7 +165,7 @@
                         mountPath: /etc/nginx/conf.d
                 containers:
                   - name: nginx
-                    image: nginx:latest
+                    image: docker.io/nginx:latest
                     imagePullPolicy: Always
                     ports:
                       - containerPort: 8080
