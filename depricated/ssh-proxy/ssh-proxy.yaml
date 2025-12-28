@@ -1,0 +1,105 @@
+---
+- name: Deploy SSH Proxy
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  vars:
+    namespace: ssh-proxy
+    image_name: ssh-proxy:latest
+
+  tasks:
+    - name: Ensure namespace exists
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ namespace }}"
+        state: present
+
+    - name: Create ConfigMap for Client Keys (Authorized Keys)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: ssh-proxy-client-keys
+            namespace: "{{ namespace }}"
+          data: "{{ vars.all.vars.ssh_proxy.client_keys }}"
+
+    - name: Create ConfigMap for Server Keys (Outbound Identity)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: ssh-proxy-server-keys
+            namespace: "{{ namespace }}"
+          data:
+            id_rsa: "{{ vars.all.vars.ssh_proxy.server_private_key }}"
+
+    - name: Create SSH Proxy Deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ssh-proxy
+            namespace: "{{ namespace }}"
+            labels:
+              app: ssh-proxy
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: ssh-proxy
+            template:
+              metadata:
+                labels:
+                  app: ssh-proxy
+              spec:
+                hostNetwork: true
+                containers:
+                  - name: ssh-proxy
+                    image: "{{ image_name }}"
+                    imagePullPolicy: Always
+                    ports:
+                      - containerPort: 3141
+                        hostPort: 3141
+                    volumeMounts:
+                      - name: client-keys
+                        mountPath: /etc/ssh/client_keys
+                        readOnly: true
+                      - name: server-keys
+                        mountPath: /etc/ssh/server_keys
+                        readOnly: true
+
+                volumes:
+                  - name: client-keys
+                    configMap:
+                      name: ssh-proxy-client-keys
+                  - name: server-keys
+                    configMap:
+                      name: ssh-proxy-server-keys
+
+    - name: Create Service for SSH Proxy
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ssh-proxy
+            namespace: "{{ namespace }}"
+          spec:
+            type: ClusterIP
+            ports:
+              - port: 3141
+                targetPort: 3141
+                protocol: TCP
+            selector:
+              app: ssh-proxy
