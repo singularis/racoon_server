@@ -10,7 +10,7 @@
   tasks:
     - name: Create data directory for code-server
       ansible.builtin.file:
-        path: /other/code-server
+        path:  "{{ vars.all.vars.code_server.root_path }}"
         state: directory
         mode: '0777'
 
@@ -46,7 +46,7 @@
             persistentVolumeReclaimPolicy: Retain
             storageClassName: local-storage
             local:
-              path: /other/code-server
+              path: "{{ vars.all.vars.code_server.root_path }}"
             nodeAffinity:
               required:
                 nodeSelectorTerms:
@@ -161,9 +161,9 @@
                       claimName: code-server-pvc
                   - name: workspace
                     hostPath:
-                      path: /home/dante/racoon_server
+                      path: "{{ vars.all.vars.code_server.repo_1 }}"
                       type: Directory
                   - name: chater-workspace
                     hostPath:
-                      path: /home/dante/chater
+                      path: "{{ vars.all.vars.code_server.repo_2 }}"
                       type: Directory
