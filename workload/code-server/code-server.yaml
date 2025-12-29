@@ -1,0 +1,169 @@
+---
+- name: Prepare Code Server data directory on racoon
+  hosts: racoon
+  gather_facts: false
+  become: true
+  
+  vars_files:
+    - ../../vars.yaml
+
+  tasks:
+    - name: Create data directory for code-server
+      ansible.builtin.file:
+        path: /other/code-server
+        state: directory
+        mode: '0777'
+
+- name: Deploy Code Server to Kubernetes
+  hosts: localhost
+  gather_facts: false
+  
+  vars_files:
+    - ../../vars.yaml
+
+  tasks:
+    - name: Ensure Namespace exists
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: code-server
+        state: present
+
+    - name: Create PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: code-server-local-pv
+          spec:
+            capacity:
+              storage: 20Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local-storage
+            local:
+              path: /other/code-server
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - racoon
+
+    - name: Create PersistentVolumeClaim
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: code-server-pvc
+            namespace: code-server
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: local-storage
+            resources:
+              requests:
+                storage: 20Gi
+
+    - name: Create Service for Code Server
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: code-server-service
+            namespace: code-server
+          spec:
+            ports:
+              - port: 80
+                targetPort: 8443
+            selector:
+              app: code-server
+
+    - name: Create LoadBalancer Service for Code Server
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: code-server-lb
+            namespace: code-server
+          spec:
+            type: LoadBalancer
+            loadBalancerIP: "{{ vars.all.vars.code_server.loadBalancerIP }}"
+            ports:
+              - port: 8080
+                targetPort: 8443
+            selector:
+              app: code-server
+
+    - name: Create Deployment for Code Server
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: code-server
+            namespace: code-server
+            labels:
+              app: code-server
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: code-server
+            template:
+              metadata:
+                labels:
+                  app: code-server
+              spec:
+                nodeSelector:
+                  kubernetes.io/hostname: racoon
+                containers:
+                  - name: code-server
+                    image: docker.io/linuxserver/code-server:latest
+                    env:
+                      - name: PUID
+                        value: "1000"
+                      - name: PGID
+                        value: "1000"
+                      - name: TZ
+                        value: "Etc/UTC"
+                      - name: PASSWORD
+                        value: "{{ vars.all.vars.code_server.password }}"
+                      - name: DEFAULT_WORKSPACE
+                        value: "/config/workspace"
+                      - name: PROXY_DOMAIN
+                        value: "{{ vars.all.vars.code_server.proxy_domain }}"
+                    ports:
+                      - containerPort: 8443
+                    volumeMounts:
+                      - name: data
+                        mountPath: /config
+                      - name: workspace
+                        mountPath: /config/workspace/racoon_server
+                      - name: chater-workspace
+                        mountPath: /config/workspace/chater
+                volumes:
+                  - name: data
+                    persistentVolumeClaim:
+                      claimName: code-server-pvc
+                  - name: workspace
+                    hostPath:
+                      path: /home/dante/racoon_server
+                      type: Directory
+                  - name: chater-workspace
+                    hostPath:
+                      path: /home/dante/chater
+                      type: Directory

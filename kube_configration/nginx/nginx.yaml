@@ -112,6 +112,18 @@
                     proxy_read_timeout 86400s;
                   }
 
+                  # Code Server
+                  location /code_editor/ {
+                    proxy_pass http://code-server-service.code-server.svc.cluster.local:80/;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto https;
+                  }
+
                   # Default app
                   location / {
                     limit_req zone=req_per_ip burst=20 nodelay;

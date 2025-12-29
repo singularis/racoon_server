@@ -228,6 +228,12 @@
                       abbr: PO
                       icon: postgres
                       description: Operator UI
+                  - Code Server:
+                      href: {{ vars.all.vars.homepage.homepagelinks.code_server }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.code_server }}
+                      abbr: CS
+                      icon: visual-studio-code
+                      description: Online VS Code
               - Monitoring:
                   - Cockpit:
                       href: {{ vars.all.vars.homepage.homepagelinks.cockpit }}
