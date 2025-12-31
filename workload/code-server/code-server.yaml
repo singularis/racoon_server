@@ -128,6 +128,7 @@
                 labels:
                   app: code-server
               spec:
+                hostNetwork: true
                 nodeSelector:
                   kubernetes.io/hostname: racoon
                 containers:

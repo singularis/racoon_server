@@ -6,6 +6,9 @@
   vars:
     namespace: chater-ui
 
+  vars_files:
+    - ../../vars.yaml
+
   tasks:
     - name: Ensure namespace exists
       kubernetes.core.k8s:
@@ -13,6 +16,18 @@
         kind: Namespace
         name: "{{ namespace }}"
         state: present
+
+    - name: Create Secret for basic auth
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: chater-nginx-auth
+            namespace: "{{ namespace }}"
+          stringData:
+            .htpasswd: "{{ vars.all.vars.nginx.proxy_user }}:{{ vars.all.vars.nginx.proxy_password_hash }}"
 
     - name: Create ConfigMap for reverse proxy (NGINX)
       kubernetes.core.k8s:
@@ -114,6 +129,8 @@
 
                   # Code Server
                   location /code_editor/ {
+                    auth_basic "Restricted Content";
+                    auth_basic_user_file /etc/nginx/auth/.htpasswd;
                     proxy_pass http://code-server-service.code-server.svc.cluster.local:80/;
                     proxy_http_version 1.1;
                     proxy_set_header Upgrade $http_upgrade;
@@ -210,6 +227,9 @@
                         mountPath: /var/run
                       - name: nginx-conf-d
                         mountPath: /etc/nginx/conf.d
+                      - name: auth-volume
+                        mountPath: /etc/nginx/auth
+                        readOnly: true
                     securityContext:
                       allowPrivilegeEscalation: false
                       readOnlyRootFilesystem: true
@@ -227,6 +247,9 @@
                     emptyDir: {}
                   - name: nginx-conf-d
                     emptyDir: {}
+                  - name: auth-volume
+                    secret:
+                      secretName: chater-nginx-auth
 
     - name: Create Service for reverse proxy
       kubernetes.core.k8s:
@@ -244,5 +267,3 @@
                 targetPort: 8080
             selector:
               app: chater-reverse-proxy
-
-
