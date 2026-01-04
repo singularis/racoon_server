@@ -93,7 +93,9 @@
           rootUser: "{{ vars.all.vars.minio.root_user }}"
           rootPassword: "{{ vars.all.vars.minio.root_password }}"
           persistence:
-            enabled: false
+            enabled: true
+            storageClass: local-storage
+            size: 500Gi
           service:
             type: LoadBalancer
             loadBalancerIP: "{{ vars.all.vars.minio.loadBalancerIP }}"
