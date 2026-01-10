@@ -1,0 +1,268 @@
+---
+- name: Graphical Workstation Setup
+  hosts: localhost
+  become: yes
+
+  tasks:
+    # -------------------------------------------------------------------------
+    # 0. Cleanup Conflicting Sources
+    # -------------------------------------------------------------------------
+    - name: Remove potentially conflicting VS Code sources files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/vscode.list
+        - /etc/apt/sources.list.d/vscode.sources
+
+    # -------------------------------------------------------------------------
+    # 1. Repositories and Keys
+    # -------------------------------------------------------------------------
+    - name: Ensure dependencies for adding repositories are installed
+      apt:
+        name:
+          - curl
+          - gpg
+          - software-properties-common
+          - apt-transport-https
+          - ca-certificates
+        state: present
+
+    - name: Enable Universe repository
+      command: add-apt-repository universe -y
+      register: universe_repo
+      changed_when: '"distribution component is already enabled" not in universe_repo.stdout'
+
+    # VS Code Repo
+    - name: Download Microsoft GPG key
+      get_url:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        dest: /tmp/microsoft.asc
+    
+    - name: Dearmor Microsoft GPG key
+      shell: gpg --dearmor < /tmp/microsoft.asc > /usr/share/keyrings/packages.microsoft.gpg
+      args:
+        creates: /usr/share/keyrings/packages.microsoft.gpg
+
+    - name: Add VS Code repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main"
+        state: present
+        filename: vscode
+
+    # Google Chrome Repo
+    - name: Download Google Chrome GPG key
+      get_url:
+        url: https://dl.google.com/linux/linux_signing_key.pub
+        dest: /tmp/google-chrome.pub
+    
+    - name: Dearmor Google Chrome GPG key
+      shell: gpg --dearmor < /tmp/google-chrome.pub > /usr/share/keyrings/google-chrome.gpg
+      args:
+        creates: /usr/share/keyrings/google-chrome.gpg
+
+    - name: Add Google Chrome repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main"
+        state: present
+        filename: google-chrome
+
+    # Lens Kubernetes IDE Repo
+    - name: Download Lens GPG key
+      get_url:
+        url: https://downloads.k8slens.dev/keys/gpg
+        dest: /tmp/lens.gpg
+    
+    - name: Dearmor Lens GPG key
+      shell: gpg --dearmor < /tmp/lens.gpg > /usr/share/keyrings/lens-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/lens-archive-keyring.gpg
+
+    - name: Add Lens repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/lens-archive-keyring.gpg] https://downloads.k8slens.dev/apt/debian stable main"
+        state: present
+        filename: lens
+
+    # -------------------------------------------------------------------------
+    # 2. System and Graphical Environment
+    # -------------------------------------------------------------------------
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Ensure Ubuntu Desktop (graphical target) is installed
+      apt:
+        name: ubuntu-desktop
+        state: present
+
+    - name: Ensure latest NVIDIA drivers are installed
+      apt:
+        name: nvidia-driver-580
+        state: present
+
+    # -------------------------------------------------------------------------
+    # 3. Applications
+    # -------------------------------------------------------------------------
+    - name: Install User Applications
+      apt:
+        name:
+          - google-chrome-stable
+          - code
+          - fish
+          - vlc
+          - gimp
+          - lens
+        state: present
+
+    # -------------------------------------------------------------------------
+    # 4. Logitech MX Master Configuration (logiops)
+    # -------------------------------------------------------------------------
+    - name: Install dependencies for logiops
+      apt:
+        name:
+          - cmake
+          - build-essential
+          - libevdev-dev
+          - libudev-dev
+          - libconfig++-dev
+          - libglib2.0-dev
+          - git
+        state: present
+
+    - name: Clone logiops repository
+      git:
+        repo: https://github.com/pixlOne/logiops.git
+        dest: /tmp/logiops
+        version: main
+        force: yes
+
+    - name: Build logiops
+      shell: |
+        mkdir -p build
+        cd build
+        cmake ..
+        make
+      args:
+        chdir: /tmp/logiops
+        creates: /tmp/logiops/build/logid
+
+    - name: Install logiops
+      shell: |
+        cd build
+        make install
+      args:
+        chdir: /tmp/logiops
+        creates: /usr/bin/logid
+
+    - name: Check if logid.service was installed
+      stat:
+        path: /etc/systemd/system/logid.service
+      register: logid_service_check
+
+    - name: Create logid systemd service file if not installed
+      copy:
+        dest: /etc/systemd/system/logid.service
+        content: |
+          [Unit]
+          Description=Logitech Configuration Daemon
+          StartLimitIntervalSec=0
+          After=multi-user.target
+          Wants=multi-user.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/logid
+          User=root
+
+          [Install]
+          WantedBy=graphical.target
+      when: not logid_service_check.stat.exists
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start logid service
+      systemd:
+        name: logid
+        enabled: yes
+        state: started
+
+    - name: Configure /etc/logid.cfg for MX Master Window View
+      copy:
+        dest: /etc/logid.cfg
+        content: |
+          devices: (
+          {
+            name: "Wireless Mouse MX Master 3";
+            smartshift:
+            {
+              on: true;
+              threshold: 10;
+            };
+            hiresscroll:
+            {
+              hires: true;
+              invert: false;
+              target: false;
+            };
+            dpi: 1000;
+            
+            thumbwheel:
+            {
+              divert: true;
+              invert: false;
+              left:
+              {
+                threshold: 1;
+                interval: 1;
+                direction: "Left";
+                mode: "OnInterval";
+                action:
+                {
+                  type: "Keypress";
+                  keys: ["KEY_VOLUMEDOWN"];
+                };
+              };
+              right:
+              {
+                threshold: 1;
+                interval: 1;
+                direction: "Right";
+                mode: "OnInterval";
+                action:
+                {
+                  type: "Keypress";
+                  keys: ["KEY_VOLUMEUP"];
+                };
+              };
+            };
+            
+            buttons: (
+              {
+                cid: 0xc3;
+                action:
+                {
+                  type: "Keypress";
+                  keys: ["KEY_LEFTMETA"]; # Windows View / Activities Overview
+                };
+              },
+              {
+                cid: 0xc4;
+                action:
+                {
+                  type: "Keypress";
+                  keys: ["KEY_LEFTMETA"]; # Fallback for gesture button often mapped here
+                };
+              }
+            );
+          }
+          );
+      notify: Restart logid
+
+  handlers:
+    - name: Restart logid
+      service:
+        name: logid
+        state: restarted

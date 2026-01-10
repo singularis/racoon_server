@@ -12,3 +12,5 @@
   import_playbook: ./basic.yaml
 - name: Include the Basic Setup playbook
   import_playbook: ./jupiter.yaml
+- name: Include grpahical target playbook
+  import_playbook: ./graphical.yaml 
