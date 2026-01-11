@@ -154,15 +154,21 @@
               class: ""
             template:
               pod:
-                spec:
-                  tolerations:
-                    - key: "dedicated"
-                      operator: "Equal"
-                      value: "control-plane"
-                      effect: "NoSchedule"
-                    - key: "node-role.kubernetes.io/control-plane"
-                      operator: "Exists"
-                      effect: "NoSchedule"
+                tolerations:
+                  - key: "dedicated"
+                    operator: "Equal"
+                    value: "control-plane"
+                    effect: "NoSchedule"
+                  - key: "node-role.kubernetes.io/control-plane"
+                    operator: "Exists"
+                    effect: "NoSchedule"
+                  - key: "nvidia.com/gpu"
+                    operator: "Exists"
+                    effect: "NoSchedule"
+                  - key: "gpu-only"
+                    operator: "Equal"
+                    value: "true"
+                    effect: "NoSchedule"
 
     - name: Create KafkaNodePool for brokers
       kubernetes.core.k8s:
@@ -186,15 +192,21 @@
               class: ""
             template:
               pod:
-                spec:
-                  tolerations:
-                    - key: "dedicated"
-                      operator: "Equal"
-                      value: "control-plane"
-                      effect: "NoSchedule"
-                    - key: "node-role.kubernetes.io/control-plane"
-                      operator: "Exists"
-                      effect: "NoSchedule"
+                tolerations:
+                  - key: "dedicated"
+                    operator: "Equal"
+                    value: "control-plane"
+                    effect: "NoSchedule"
+                  - key: "node-role.kubernetes.io/control-plane"
+                    operator: "Exists"
+                    effect: "NoSchedule"
+                  - key: "nvidia.com/gpu"
+                    operator: "Exists"
+                    effect: "NoSchedule"
+                  - key: "gpu-only"
+                    operator: "Equal"
+                    value: "true"
+                    effect: "NoSchedule"
 
     - name: Deploy Kafka Cluster (KRaft mode)
       kubernetes.core.k8s:
