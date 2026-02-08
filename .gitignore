@@ -8,3 +8,5 @@ certs
 workers_inventory.ini
 vars*
 notes*
+*venv*
+depricated/*

@@ -281,6 +281,25 @@
                       abbr: VR
                       icon: /custom/router-vendor.svg
                       description: Vendor Router
+              - Dev Etearia:
+                  - Eater Stats Dev:
+                      href: {{ vars.all.vars.homepage.homepagelinks.eater_stats_dev }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.eater_stats_dev }}
+                      abbr: ED
+                      icon: /custom/eateria.jpg
+                      description: Eater Dev Portal
+                  - Locust UI Dev:
+                      href: {{ vars.all.vars.homepage.homepagelinks.locust_ui_dev }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.locust_ui_dev }}
+                      abbr: LD
+                      icon: /custom/locust.png
+                      description: Locust Dev UI
+                  - Chater Dev Internal:
+                      href: {{ vars.all.vars.homepage.homepagelinks.chater_dev_internal }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.chater_dev_internal }}
+                      abbr: CD
+                      icon: /custom/chater.png
+                      description: Chater Dev Internal
             widgetsYaml: |
               - logo:
                   text: Racoon
