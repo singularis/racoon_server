@@ -10,3 +10,4 @@ vars*
 notes*
 *venv*
 depricated/*
+kube_configration/secrets/
