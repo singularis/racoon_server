@@ -320,9 +320,9 @@
                     temperature: true
                     showLabel: true
               - openmeteo:
-                  label: Warsaw
-                  latitude: 52.2297
-                  longitude: 21.0122
+                  label: London
+                  latitude: 51.5074
+                  longitude: -0.1278
                   units: metric
 
 
