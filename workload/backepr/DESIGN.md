@@ -163,9 +163,18 @@ data:
 
     # ─── Backup Sources ─────────────────────────
     backup_sources:
-      - name: "home_directory"
+      - name: "home_racoon"
         source: "/home/dante/"
-        destination: "home/"
+        node: "racoon"
+        destination: "home/racoon/"
+      - name: "home_gpu"
+        source: "/home/dante/"
+        node: "racoon-gpu"
+        destination: "home/racoon-gpu/"
+      - name: "home_worker"
+        source: "/home/dante/"
+        node: "worker"
+        destination: "home/worker/"
       - name: "etcd_snapshot"
         source: "/var/lib/etcd-backup/"
         destination: "etcd/"
@@ -463,13 +472,15 @@ The LUKS passphrase is stored in the `backepr-secrets` K8s Secret (from `vars.ya
 
 ## 9. Backup Sources
 
-| Source | Path | Tool | Schedule |
-|--------|------|------|----------|
-| **Home dir** | `/home/dante/` | rsync → 6 TB | Weekly |
-| **etcd** | `/var/lib/etcd-backup/` | `etcdctl snapshot` → rsync | Weekly |
-| **Eater DB** | PVC on `racoon` | pg_dump → rsync | Weekly |
-| **Google Drive** | `/backup/google/` | rclone → rsync | Q3 months |
-| **Google Photos** | Mac → Samba staging | Manual Takeout → Finder | Ad-hoc (Q3 reminder) |
+| Source | Path | Node | Tool | Schedule |
+|--------|------|------|------|----------|
+| **Home dir** | `/home/dante/` | `racoon` | rsync → 6 TB | Weekly |
+| **Home dir** | `/home/dante/` | `racoon-gpu` | rsync → 6 TB | Weekly |
+| **Home dir** | `/home/dante/` | `worker` | rsync → 6 TB | Weekly |
+| **etcd** | `/var/lib/etcd-backup/` | `racoon` | `etcdctl snapshot` → rsync | Weekly |
+| **Eater DB** | PVC on `racoon` | `racoon` | pg_dump → rsync | Weekly |
+| **Google Drive** | `/backup/google/` | `racoon` | rclone → rsync | Q3 months |
+| **Google Photos** | Mac → Samba staging | — | Manual Takeout → Finder | Ad-hoc (Q3 reminder) |
 
 ---
 
@@ -744,37 +755,28 @@ graph TB
 ### 12.5 Wiring Diagram 🆕v7
 
 ```
-┌─────────────┐
-│  Wall 12V   │
-│  Power      │
-│  Adapter    │
-└──────┬──────┘
-       │ 12V
-       ├────────────────────────────┐
-       │                             │
-┌──────┴─────────────────┐    ┌────┴─────────────────┐
-│  12V Relay Module        │    │  ESP-01S Relay Board  │
-│  (controlled by ESP)     │    │  (powers ESP8266)     │
-│                          │    │  12V → 3.3V regulator │
-│  Relay IN ← ESP GPIO0   │    │                       │
-└──────┬─────────────────┘    └───────────────────────┘
-       │ relay out
-       │                       ┌──────────────────────┐
-       │                       │  Pi Zero W            │
-       │                       │  Powered by 5V USB    │
-       │                       │  (separate from 12V)  │
-       │                       │                       │
-       │                       │  CSI → Pi Camera      │
-       │                       │  WiFi → SSH + HTTP    │
-       │                       │  GPIO17 ← ESP state   │
-       │                       │  (optional wire)      │
-       │                       └──────────────────────┘
-       │
-┌──────┴───────┐
-│  3.5" HDD    │
-│  Bay         │
-│  (14 TB)     │
-└──────────────┘
+                            ┌───────────────────────────────────────────────────┐
+                            │              HDD Bay Enclosure                     │
+                            │                                                   │
+  ┌─────────────┐  12V in   │  ┌──────────────────────┐  ┌──────────────────┐  │
+  │  Wall 12V   │──────────→│  │  ESP-01S Relay Board  │  │  12V Relay       │  │
+  │  Power      │           │  │                       │  │  Module          │  │
+  │  Adapter    │           │  │  12V → 3.3V regulator │  │                  │  │
+  └─────────────┘           │  │  WiFi HTTP server     │  │  IN ← ESP GPIO0 │  │
+                            │  │  Auto-off timer (2h)  │  │  OUT → HDD 12V  │  │
+                            │  └──────────────────────┘  └────────┬─────────┘  │
+                            │                                      │            │
+                            │  ┌──────────────────────┐           │ 12V power  │
+  ┌─────────────┐  5V USB   │  │  Pi Zero W            │           │            │
+  │  racoon     │──────────→│  │                       │  ┌───────┴──────────┐ │
+  │  USB port   │           │  │  CSI → Pi Camera      │  │  14 TB WD HDD    │ │
+  └─────────────┘           │  │  WiFi → SSH           │  │                  │ │
+                            │  │  Motor hours service  │  │  (enterprise)    │ │
+                            │  │  Python + systemd     │  │                  │ │
+                            │  └──────────────────────┘  └──────────────────┘ │
+                            │                                                   │
+                            │  No data wires between boards — WiFi only         │
+                            └───────────────────────────────────────────────────┘
 ```
 
 > [!IMPORTANT]
@@ -974,23 +976,23 @@ Max log file: 50 MB, rotated. Logs older than 4 months auto-deleted.
     samba_staging:
       namespace: "samba"
       loadBalancerIP: 192.168.0.123
-      user: time
-      password: bar
+      user: "<REDACTED>"
+      password: "<REDACTED>"
     backepr:
       namespace: "backepr"
       loadBalancerIP: 192.168.0.122
       gpu_mac_address: "XX:XX:XX:XX:XX:XX"    # fill in later
       esp01s_ip: "192.168.0.XXX"               # ESP-01S relay 🆕v7
       pi_zero_ip: "192.168.0.YYY"               # Pi Zero W brain 🆕v7
-      restic_password: "CHANGE_ME"
-      luks_passphrase: "CHANGE_ME"
+      restic_password: "<REDACTED>"
+      luks_passphrase: "<REDACTED>"
       ssh_private_key_path: "/home/dante/.ssh/backepr_id_ed25519"
-      smtp_host: "smtp.gmail.com"
-      email_from: "backepr@singularis.work"
-      email_to: "singularis314@gmail.com"
-      smtp_password: "CHANGE_ME"
+      smtp_host: "<REDACTED>"
+      email_from: "<REDACTED>"
+      email_to: "<REDACTED>"
+      smtp_password: "<REDACTED>"
       rclone_config_path: "/home/dante/.config/rclone/rclone.conf"
-      healthcheck_uuid: "CHANGE_ME"
+      healthcheck_uuid: "<REDACTED>"
 ```
 
 ---
