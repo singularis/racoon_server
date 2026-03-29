@@ -8,8 +8,8 @@
 
 // ── Relay ────────────────────────────────────────────────
 #define RELAY_PIN         0        // GPIO0 → relay IN
-#define RELAY_ON          LOW      // active-low relay module
-#define RELAY_OFF         HIGH
+#define RELAY_ON          HIGH     // active-high relay module
+#define RELAY_OFF         LOW
 
 // ── LED (ESP-01S built-in, active LOW) ───────────────────
 #define LED_PIN           2        // GPIO2 built-in blue LED

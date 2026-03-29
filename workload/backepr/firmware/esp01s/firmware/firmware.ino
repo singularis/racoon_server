@@ -26,11 +26,15 @@ static bool     relayOn        = false;
 static unsigned long powerOnAt = 0;      // millis() when relay closed
 static unsigned long lastPing  = 0;      // millis() of last keep-alive
 
-// LED async blink queue
+// Relay and LED async queue
 static uint8_t       blinkRemain = 0;    // blinks left to emit
 static unsigned long blinkNext   = 0;    // next toggle time
 static bool          blinkState  = false;
 static unsigned long heartbeatAt = 0;    // next idle heartbeat
+
+static bool          pendingRelay      = false;
+static bool          pendingRelayState = false;
+static unsigned long pendingRelayNext  = 0;
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -60,33 +64,41 @@ static void sendJSON(int code, const String &json) {
 // ── Handlers ─────────────────────────────────────────────
 
 static void handlePowerOn() {
-  setRelay(true);
-  queueBlinks(2);
   sendJSON(200, "{\"ok\":true,\"powered\":true}");
+  queueBlinks(2);
+  // Delay relay switch to prevent brownout from simultaneous WiFi + Coil use
+  pendingRelay = true;
+  pendingRelayState = true;
+  pendingRelayNext = millis() + 500; 
 }
 
 static void handlePowerOff() {
-  setRelay(false);
-  queueBlinks(3);
   sendJSON(200, "{\"ok\":true,\"powered\":false}");
+  queueBlinks(3);
+  pendingRelay = true;
+  pendingRelayState = false;
+  pendingRelayNext = millis() + 500;
 }
 
 static void handleStatus() {
-  unsigned long up = relayOn ? (millis() - powerOnAt) / 1000 : 0;
-  sendJSON(200, "{\"powered\":" + String(relayOn ? "true" : "false") +
+  bool state = pendingRelay ? pendingRelayState : relayOn;
+  unsigned long up = state ? (millis() - powerOnAt) / 1000 : 0;
+  sendJSON(200, "{\"powered\":" + String(state ? "true" : "false") +
                 ",\"uptime_sec\":" + String(up) + "}");
 }
 
 static void handlePing() {
-  if (relayOn) lastPing = millis();
+  bool state = pendingRelay ? pendingRelayState : relayOn;
+  if (state) lastPing = millis();
   queueBlinks(4);
   sendJSON(200, "{\"ok\":true,\"ping\":\"pong\"}");
 }
 
 static void handleHealth() {
+  bool state = pendingRelay ? pendingRelayState : relayOn;
   sendJSON(200, "{\"wifi_rssi\":" + String(WiFi.RSSI()) +
                 ",\"heap_free\":" + String(ESP.getFreeHeap()) +
-                ",\"relay_state\":" + String(relayOn ? "true" : "false") + "}");
+                ",\"relay_state\":" + String(state ? "true" : "false") + "}");
 }
 
 static void handleNotFound() {
@@ -133,8 +145,14 @@ void loop() {
 
   unsigned long now = millis();
 
+  // ── Async relay switch ─────────────────────────────────
+  if (pendingRelay && now >= pendingRelayNext) {
+    pendingRelay = false;
+    setRelay(pendingRelayState);
+  }
+
   // ── Auto-off safety ────────────────────────────────────
-  if (relayOn && (now - lastPing >= AUTO_OFF_MS)) {
+  if (relayOn && !pendingRelay && (now - lastPing >= AUTO_OFF_MS)) {
     setRelay(false);                 // hard cut — acceptable
   }
 
