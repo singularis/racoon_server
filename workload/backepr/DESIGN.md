@@ -700,9 +700,13 @@ graph TB
 **Role**: Relay control + safety timer + visual state indicator
 
 - GPIO0 controls 12V relay for HDD bay power
-- **Built-in LED state indicator** (visual debugging):
-  - **Relay OFF**: Blinks every 1 second (1s cycle)
-  - **Relay ON**: 5 seconds ON, 1 second OFF (6s cycle)
+- **Built-in LED state indicator** (visual debugging via short blinks):
+  - **WiFi Connecting**: Fast continuous blinking (100ms ON / 100ms OFF)
+  - **WiFi Connected / Idle**: 1 short blink every 5 seconds (connection heartbeat)
+  - **Signal `/power/on` received**: 2 short blinks
+  - **Signal `/power/off` received**: 3 short blinks
+  - **Signal `/ping` received**: 4 short blinks
+- **Credential Masking**: Wi-Fi credentials (`dante`) are NOT hardcoded in the Git repository. They are stored in `vars.yaml` (`esp01_hardware.wifi_ssid` and `wifi_password`). Ansible injects them into a local `secrets.h` file before compiling the ESP01 sketch. `secrets.h` is ignored in `.gitignore`.
 - WiFi HTTP server: `/power/on`, `/power/off`, `/power/status`, `/ping`
 - Auto-off timer: 2 hours, reset by `/ping` keep-alive
 - **This chip's job is to be dumb and reliable** — it switches the relay and shows status

@@ -1,14 +1,45 @@
+# --- Project Secrets & Configurations ---
 vars.yaml
-.idea
-__pycache__
+vars*
+workers_inventory.ini
+certs/
+kube_configration/secrets/
 .uuid
 dlp.py
 dlp-secret-auth
-certs
-workers_inventory.ini
-vars*
+
+# --- ESP01 Firmware / Hardware ---
+secrets.h
+.pio/
+.pioenvs/
+.piolibdeps/
+*.elf
+*.bin
+*.hex
+
+# --- Environments & IDEs ---
+.idea/
+.vscode/
+*venv*/
+venv/
+.venv/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# --- Temporary / Miscellaneous ---
+depricated/
+.docs/
 notes*
-*venv*
-depricated/*
-kube_configration/secrets/
-.docs
+*.swp
+*.swo
+.DS_Store
