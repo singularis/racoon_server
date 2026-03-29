@@ -645,7 +645,7 @@ graph TB
     end
 
     subgraph "Chip 1: ESP-01S (always on, <1s boot)"
-        ESP_HTTP["WiFi HTTP Server<br/>192.168.0.XXX"]
+        ESP_HTTP["WiFi HTTP Server<br/>192.168.0.12"]
         ESP_GPIO["GPIO0 → Relay"]
         ESP_TIMER["Auto-off Timer<br/>2 hours"]
     end
