@@ -30,17 +30,30 @@ static unsigned long lastPing  = 0;      // millis() of last keep-alive
 static uint8_t       blinkRemain = 0;    // blinks left to emit
 static unsigned long blinkNext   = 0;    // next toggle time
 static bool          blinkState  = false;
-static unsigned long heartbeatAt = 0;    // next idle heartbeat
+static bool          heartbeatPhase = false; // true = LED on half
+static unsigned long heartbeatAt  = 0;   // next heartbeat phase flip
 
 static bool          pendingRelay      = false;
 static bool          pendingRelayState = false;
 static unsigned long pendingRelayNext  = 0;
 
+// Boot stabilization guard — relay is blocked for BOOT_STABLE_MS after boot
+// to let the 3.3 V regulator settle before the coil pulls extra current.
+static unsigned long bootStableAt = 0;   // set in setup()
+
+// Last reset reason — readable via GET /health
+static String lastResetReason;
+
 // ── Helpers ──────────────────────────────────────────────
 
 static void setRelay(bool on) {
+  // Mitigate ESP-01S LDO brownout: temporarily lower WiFi TX power 
+  // so the relay coil's inrush current doesn't crash the WiFi PHY.
+  WiFi.setOutputPower(0.0);
+
   relayOn = on;
   digitalWrite(RELAY_PIN, on ? RELAY_ON : RELAY_OFF);
+  
   if (on) {
     powerOnAt = millis();
     lastPing  = millis();
@@ -48,6 +61,12 @@ static void setRelay(bool on) {
   if (blinkRemain == 0) {
     digitalWrite(LED_PIN, on ? LED_ON : LED_OFF);
   }
+
+  // Allow coil magnetic field and LDO voltage to stabilize
+  delay(50);
+  
+  // Restore default TX power (typically 20.5 dBm)
+  WiFi.setOutputPower(20.5);
 }
 
 // Queue N short blinks (non-blocking, handled in loop)
@@ -58,6 +77,7 @@ static void queueBlinks(uint8_t n) {
 }
 
 static void sendJSON(int code, const String &json) {
+  server.sendHeader("Connection", "close");
   server.send(code, "application/json", json);
 }
 
@@ -66,10 +86,11 @@ static void sendJSON(int code, const String &json) {
 static void handlePowerOn() {
   sendJSON(200, "{\"ok\":true,\"powered\":true}");
   queueBlinks(2);
-  // Delay relay switch to prevent brownout from simultaneous WiFi + Coil use
+  // Delay relay switch: let WiFi finish Tx AND wait until boot is stable
   pendingRelay = true;
   pendingRelayState = true;
-  pendingRelayNext = millis() + 500; 
+  unsigned long earliest = millis() + 750;
+  pendingRelayNext = (bootStableAt > earliest) ? bootStableAt : earliest;
 }
 
 static void handlePowerOff() {
@@ -77,7 +98,8 @@ static void handlePowerOff() {
   queueBlinks(3);
   pendingRelay = true;
   pendingRelayState = false;
-  pendingRelayNext = millis() + 500;
+  unsigned long earliest = millis() + 750;
+  pendingRelayNext = (bootStableAt > earliest) ? bootStableAt : earliest;
 }
 
 static void handleStatus() {
@@ -98,7 +120,9 @@ static void handleHealth() {
   bool state = pendingRelay ? pendingRelayState : relayOn;
   sendJSON(200, "{\"wifi_rssi\":" + String(WiFi.RSSI()) +
                 ",\"heap_free\":" + String(ESP.getFreeHeap()) +
-                ",\"relay_state\":" + String(state ? "true" : "false") + "}");
+                ",\"relay_state\":" + String(state ? "true" : "false") +
+                ",\"reset_reason\":\"" + lastResetReason + "\"" +
+                ",\"uptime_ms\":" + String(millis()) + "}");
 }
 
 static void handleNotFound() {
@@ -108,6 +132,9 @@ static void handleNotFound() {
 // ── Setup ────────────────────────────────────────────────
 
 void setup() {
+  // Capture reset reason before anything else overwrites it
+  lastResetReason = ESP.getResetReason();
+
   // Relay OFF immediately (pull-up safe default)
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, RELAY_OFF);
@@ -117,6 +144,9 @@ void setup() {
   digitalWrite(LED_PIN, LED_OFF);
 
   // WiFi — fast-blink while connecting
+  WiFi.persistent(false);           // don't write credentials to flash
+  WiFi.setAutoReconnect(true);      // recover from transient AP drops
+  WiFi.setSleepMode(WIFI_NONE_SLEEP); // prevent modem-sleep crash after ~20 s idle
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -127,6 +157,9 @@ void setup() {
   }
   // connected — single blink to confirm
   queueBlinks(1);
+
+  // Mark when the relay is allowed to switch (3 s after boot)
+  bootStableAt = millis() + BOOT_STABLE_MS;
 
   // Routes
   server.on("/power/on",     HTTP_POST, handlePowerOn);
@@ -167,11 +200,29 @@ void loop() {
     }
   }
 
-  // ── Idle heartbeat (inverse if relay is ON) ────────────
+  // ── Idle heartbeat — fully non-blocking ──────────────
+  // Phase 0 (heartbeatPhase=false): flash LED on for HEARTBEAT_PULSE_MS
+  // Phase 1 (heartbeatPhase=true ): restore LED, wait HEARTBEAT_MS for next beat
   if (blinkRemain == 0 && now >= heartbeatAt) {
-    digitalWrite(LED_PIN, relayOn ? LED_OFF : LED_ON);
-    delay(30);                       // tiny blocking blink — acceptable
-    digitalWrite(LED_PIN, relayOn ? LED_ON : LED_OFF);
-    heartbeatAt = now + HEARTBEAT_MS;
+    if (relayOn) {
+      // Keep LED steady when relay is ON to avoid 5-second LDO power spikes
+      digitalWrite(LED_PIN, LED_ON);
+      heartbeatAt    = now + HEARTBEAT_MS;
+      heartbeatPhase = false;
+    } else {
+      if (!heartbeatPhase) {
+        // start of pulse: flip LED briefly
+        digitalWrite(LED_PIN, LED_ON);
+        heartbeatAt    = now + HEARTBEAT_PULSE_MS;
+        heartbeatPhase = true;
+      } else {
+        // end of pulse: restore and schedule next beat
+        digitalWrite(LED_PIN, LED_OFF);
+        heartbeatAt    = now + HEARTBEAT_MS;
+        heartbeatPhase = false;
+      }
+    }
   }
+
+  yield(); // feed software WDT and process WiFi background tasks
 }

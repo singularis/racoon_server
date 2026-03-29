@@ -20,6 +20,8 @@
 #define AUTO_OFF_MS       (2UL * 60 * 60 * 1000)   // 2 hours
 #define HEARTBEAT_MS      5000UL                    // idle blink every 5 s
 #define BLINK_MS          80UL                      // single blink duration
+#define BOOT_STABLE_MS    3000UL                    // relay blocked for 3 s after boot
+#define HEARTBEAT_PULSE_MS 30UL                     // LED-on time for heartbeat pulse
 
 // ── HTTP ─────────────────────────────────────────────────
 #define HTTP_PORT         80
