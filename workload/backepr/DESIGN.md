@@ -697,17 +697,20 @@ graph TB
 
 #### Chip 1 — ESP-01S (Always-On Relay Watchdog)
 
-**Role**: Relay control + safety timer — **identical to v6**
+**Role**: Relay control + safety timer + visual state indicator
 
 - GPIO0 controls 12V relay for HDD bay power
+- **Built-in LED state indicator** (visual debugging):
+  - **Relay OFF**: Blinks every 1 second (1s cycle)
+  - **Relay ON**: 5 seconds ON, 1 second OFF (6s cycle)
 - WiFi HTTP server: `/power/on`, `/power/off`, `/power/status`, `/ping`
 - Auto-off timer: 2 hours, reset by `/ping` keep-alive
-- **This chip's job is to be dumb and reliable** — it only switches the relay
+- **This chip's job is to be dumb and reliable** — it switches the relay and shows status
 - If the Pi crashes, the ESP still cuts power after timeout
 - Pull-up resistors ensure relay stays OFF during boot
 
 > [!IMPORTANT]
-> **The ESP-01S firmware is identical to v6.** No UART, no bridge, no complexity. Same 3 endpoints, same auto-off. The Pi is an independent chip that adds features without touching the relay safety path.
+> **The ESP-01S firmware is very close to v6** (now with LED blink patterns). No UART, no bridge, no complexity. Same 3 endpoints, same auto-off. The Pi is an independent chip that adds features without touching the relay safety path.
 
 #### Chip 2 — Raspberry Pi Zero W (Brain)
 
@@ -1124,7 +1127,7 @@ workload/
 - [ ] Deploy, add to Homepage
 
 ### Phase 4 — Hardware Controller (Two-Chip) 🆕v7
-- [ ] Flash ESP-01S with relay firmware (unchanged from v6)
+- [ ] Flash ESP-01S with relay firmware (updated with LED status blinks)
 - [ ] Install Raspberry Pi OS Lite on Pi Zero W
 - [ ] Deploy `motor_hours_service.py` + systemd unit
 - [ ] Connect Pi Camera Module, test `libcamera-still`
