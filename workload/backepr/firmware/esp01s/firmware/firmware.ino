@@ -65,8 +65,9 @@ static void setRelay(bool on) {
   // Allow coil magnetic field and LDO voltage to stabilize
   delay(50);
   
-  // Restore default TX power (typically 20.5 dBm)
-  WiFi.setOutputPower(20.5);
+  // Restore to a lower TX power (15.0 dBm instead of 20.5) to keep combined
+  // current draw (relay coil + WiFi) under the AMS1117-3.3 LDO limits.
+  WiFi.setOutputPower(15.0);
 }
 
 // Queue N short blinks (non-blocking, handled in loop)

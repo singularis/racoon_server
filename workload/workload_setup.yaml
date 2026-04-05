@@ -3,6 +3,8 @@
   hosts: localhost
   connection: local
   gather_facts: false
+- name: Setup registry cache
+  import_playbook: ./registry-cache/registry-cache.yaml
 #- name: Setup gphoto
 #  import_playbook: ./gphoto/gphoto.yaml
 - name: Setup Kafka

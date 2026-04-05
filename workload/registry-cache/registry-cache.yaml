@@ -1,0 +1,210 @@
+---
+- name: Prepare Registry Cache data directory on racoon
+  hosts: racoon
+  gather_facts: false
+  become: true
+  
+  vars_files:
+    - "../../vars.yaml"
+
+  tasks:
+    - name: Create data directory for registry-cache
+      ansible.builtin.file:
+        path:  "{{ all.vars.registry_cache.data_path }}"
+        state: directory
+        mode: '0777'
+
+- name: Deploy Registry Cache to Kubernetes
+  hosts: localhost
+  gather_facts: false
+  
+  vars_files:
+    - "../../vars.yaml"
+
+  tasks:
+    - name: Ensure Namespace exists
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ all.vars.registry_cache.namespace }}"
+        state: present
+
+    - name: Create ConfigMap for registry configuration
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: registry-config
+            namespace: "{{ all.vars.registry_cache.namespace }}"
+          data:
+            config.yml: |
+              version: 0.1
+              log:
+                fields:
+                  formatter: json
+              storage:
+                cache:
+                  blobdescriptor: inmemory
+                filesystem:
+                  rootdirectory: /var/lib/registry
+                delete:
+                  enabled: true
+              http:
+                addr: :5000
+                headers:
+                  X-Content-Type-Options: [nosniff]
+              health:
+                storagedriver:
+                  enabled: true
+                  interval: 10s
+                  threshold: 3
+              proxy:
+                remoteurl: https://registry-1.docker.io
+                username: "{{ all.vars.docker_hub.username }}"
+                password: "{{ all.vars.docker_hub.password }}"
+
+    - name: Create PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: registry-cache-local-pv
+          spec:
+            capacity:
+              storage: "{{ all.vars.registry_cache.volume_size }}"
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local-storage
+            local:
+              path: "{{ all.vars.registry_cache.data_path }}"
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - racoon
+
+    - name: Create PersistentVolumeClaim
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: registry-cache-pvc
+            namespace: "{{ all.vars.registry_cache.namespace }}"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: local-storage
+            resources:
+              requests:
+                storage: "{{ all.vars.registry_cache.volume_size }}"
+
+    - name: Create Deployment for Registry Cache
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: registry-cache
+            namespace: "{{ all.vars.registry_cache.namespace }}"
+            labels:
+              app: registry-cache
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: registry-cache
+            template:
+              metadata:
+                labels:
+                  app: registry-cache
+              spec:
+                nodeSelector:
+                  kubernetes.io/hostname: racoon
+                containers:
+                  - name: registry
+                    image: public.ecr.aws/docker/library/registry:2
+                    ports:
+                      - containerPort: 5000
+                        name: registry
+                    resources:
+                      limits:
+                        memory: "256Mi"
+                        cpu: "200m"
+                    volumeMounts:
+                      - name: data
+                        mountPath: /var/lib/registry
+                      - name: config
+                        mountPath: /etc/docker/registry/config.yml
+                        subPath: config.yml
+                volumes:
+                  - name: data
+                    persistentVolumeClaim:
+                      claimName: registry-cache-pvc
+                  - name: config
+                    configMap:
+                      name: registry-config
+
+    - name: Create Service for Registry Cache
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: registry-cache
+            namespace: "{{ all.vars.registry_cache.namespace }}"
+          spec:
+            type: LoadBalancer
+            loadBalancerIP: "{{ all.vars.registry_cache.loadBalancerIP }}"
+            ports:
+              - port: 5000
+                targetPort: 5000
+                name: registry
+            selector:
+              app: registry-cache
+
+- name: Configure CRI-O mirrors on all nodes
+  hosts: kafka_cluster
+  become: true
+  gather_facts: false
+  
+  vars_files:
+    - "../../vars.yaml"
+
+  tasks:
+    - name: Ensure registries.conf.d exists
+      ansible.builtin.file:
+        path: /etc/containers/registries.conf.d
+        state: directory
+        mode: '0755'
+
+    - name: Add registry cache mirror to CRI-O
+      ansible.builtin.copy:
+        dest: /etc/containers/registries.conf.d/50-registry-cache.conf
+        content: |
+          [[registry]]
+          prefix = "docker.io"
+          location = "docker.io"
+
+          [[registry.mirror]]
+          location = "{{ all.vars.registry_cache.loadBalancerIP }}:5000"
+          insecure = true
+      register: registry_config
+
+    - name: Restart CRI-O if config changed
+      ansible.builtin.systemd:
+        name: crio
+        state: restarted
+      when: registry_config.changed
