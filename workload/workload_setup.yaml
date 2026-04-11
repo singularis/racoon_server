@@ -34,3 +34,5 @@
   import_playbook: ./homepage/homepage.yaml
 - name: code-server
   import_playbook: ./code-server/code-server.yaml
+- name: vllm
+  import_playbook: ./vllm/vllm.yaml

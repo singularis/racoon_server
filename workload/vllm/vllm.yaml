@@ -1,0 +1,26 @@
+---
+- name: Install vLLM Helm Chart
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    helm_chart_release_name: vllm
+    helm_chart_namespace: vllm
+
+  tasks:
+    - name: Create namespace for vLLM
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ helm_chart_namespace }}"
+        state: present
+
+    # Since we are using a local chart, we can just apply from the local path.
+    - name: Deploy vLLM via local Helm chart
+      community.kubernetes.helm:
+        name: "{{ helm_chart_release_name }}"
+        chart_ref: "./chart" # path relative to the playbook execution directory
+        namespace: "{{ helm_chart_namespace }}"
+        state: present
+        force: true
+        wait: true

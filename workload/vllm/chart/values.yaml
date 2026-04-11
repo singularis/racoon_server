@@ -1,0 +1,14 @@
+image:
+  repository: docker.io/vllm/vllm-openai
+  tag: latest
+model: "openai/gpt-oss-20b"
+gpuMemoryUtilization: "0.85"
+service:
+  type: LoadBalancer
+  port: 8000
+  loadBalancerIP: "192.168.0.160"
+resources:
+  limits:
+    nvidia.com/gpu: 1
+nodeSelector:
+  kubernetes.io/hostname: racoon-gpu

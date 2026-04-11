@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      tolerations:
+        - key: gpu-only
+          operator: Exists
+        - key: gpu-only
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+            - python3
+            - "-m"
+            - vllm.entrypoints.openai.api_server
+            - "--model"
+            - "{{ .Values.model }}"
+            - "--gpu-memory-utilization"
+            - "{{ .Values.gpuMemoryUtilization }}"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8000"
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: "all"
+            - name: VLLM_PORT
+              value: "8000"
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+            - name: dev-nvidia0
+              mountPath: /dev/nvidia0
+            - name: dev-nvidiactl
+              mountPath: /dev/nvidiactl
+            - name: dev-nvidia-uvm
+              mountPath: /dev/nvidia-uvm
+      volumes:
+        - name: model-cache
+          hostPath:
+            path: /other_hdd/vllm
+            type: DirectoryOrCreate
+        - name: dev-nvidia0
+          hostPath:
+            path: /dev/nvidia0
+        - name: dev-nvidiactl
+          hostPath:
+            path: /dev/nvidiactl
+        - name: dev-nvidia-uvm
+          hostPath:
+            path: /dev/nvidia-uvm
