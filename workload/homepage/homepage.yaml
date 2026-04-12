@@ -71,6 +71,8 @@
             repository: ghcr.io/gethomepage/homepage
             tag: latest
             pullPolicy: Always
+          env:
+            NODE_TLS_REJECT_UNAUTHORIZED: "0"
           service:
             type: LoadBalancer
             port: 3000
@@ -235,6 +237,12 @@
                       icon: visual-studio-code
                       description: Online VS Code
               - Monitoring:
+                  - Proxmox:
+                      href: {{ vars.all.vars.homepage.homepagelinks.proxmox }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.proxmox }}
+                      abbr: PX
+                      icon: proxmox
+                      description: Proxmox
                   - Cockpit:
                       href: {{ vars.all.vars.homepage.homepagelinks.cockpit }}
                       siteMonitor: {{ vars.all.vars.homepage.pings_full.cockpit }}
