@@ -51,5 +51,3 @@
     - name: Install Ollama (placeholder)
       shell: |
         curl -fsSL https://ollama.com/install.sh | sh
-      args:
-        warn: false

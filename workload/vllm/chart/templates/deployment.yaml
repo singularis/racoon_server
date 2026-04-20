@@ -28,6 +28,7 @@ spec:
       containers:
         - name: vllm
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
           command:
             - python3
             - "-m"
@@ -64,7 +65,7 @@ spec:
       volumes:
         - name: model-cache
           hostPath:
-            path: /other_hdd/vllm
+            path: /var/cache/vllm
             type: DirectoryOrCreate
         - name: dev-nvidia0
           hostPath:
