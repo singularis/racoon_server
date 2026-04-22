@@ -165,6 +165,12 @@
                       abbr: OW
                       icon: openai
                       description: OpenWebUI
+                  - OpenClaw:
+                      href: {{ vars.all.vars.homepage.homepagelinks.openclaw }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.openclaw }}
+                      abbr: OC
+                      icon: /custom/openclaw.png
+                      description: OpenClaw UI
                   - Jupyter:
                       href: {{ vars.all.vars.homepage.homepagelinks.jupyter }}
                       siteMonitor: {{ vars.all.vars.homepage.pings_full.jupyter }}
