@@ -39,7 +39,6 @@ Ansible-based Kubernetes cluster deployment and configuration management for pro
 - **Beats Collector**: Log aggregation
 
 ### Development Tools
-- **Jenkins**: 192.168.0.102 (20GB volume)
 - **Jira**: 192.168.0.103 (20GB volume)
 - **OpenWebUI**: 192.168.0.101 (10GB volume)
 - **pgAdmin**: Database administration
@@ -57,7 +56,6 @@ Ansible-based Kubernetes cluster deployment and configuration management for pro
 ### External Access
 - **Ngrok**: Secure tunneling
   - chater.singularis.work
-  - jenkins.singularis.work
 - **VPN Gateway**: Secure remote access
 
 ## System Requirements

@@ -34,7 +34,6 @@ declare -a EXCLUDE_PATTERNS=(
   "^kafka-new/"                # Strimzi Kafka (brokers/controllers/state)
   "^minio/"                    # MinIO namespace from values
   "^pihole/"                   # Pi-hole
-  "^jenkins/"                  # Jenkins
   "^nextcloud/"                # Nextcloud + nextcloud-db (Zalando Postgres)
   "^neo4j/"                    # Neo4j
   "^samba/"                    # Samba timemachine

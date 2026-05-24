@@ -218,12 +218,6 @@
                       abbr: N4
                       icon: neo4j
                       description: Graph DB
-                  - Jenkins:
-                      href: {{ vars.all.vars.homepage.homepagelinks.jenkins }}
-                      siteMonitor: {{ vars.all.vars.homepage.pings_full.jenkins }}
-                      abbr: JK
-                      icon: jenkins
-                      description: CI/CD
                   - Loucst UI:
                       href: {{ vars.all.vars.homepage.homepagelinks.locust_ui }}
                       siteMonitor: {{ vars.all.vars.homepage.pings_full.locust_ui }}
