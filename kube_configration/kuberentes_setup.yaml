@@ -15,3 +15,7 @@
   import_playbook: ./nginx/nginx-ngrok.yaml
 - name: Setup docker-registry-secret
   import_playbook: ./secrets/docker_registry_secret.yaml
+- name: Setup ArgoCD
+  import_playbook: ./argocd/argocd.yaml
+- name: Setup GitHub Actions Runner
+  import_playbook: ./github-actions/runner.yaml

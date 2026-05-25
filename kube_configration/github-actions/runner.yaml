@@ -1,0 +1,55 @@
+---
+- name: Install Actions Runner Controller
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../vars.yaml
+
+  tasks:
+    - name: Create namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ vars.all.vars.github_actions.namespace }}"
+        state: present
+
+    - name: Add ARC Helm repo
+      kubernetes.core.helm_repository:
+        name: actions-runner-controller
+        repo_url: https://actions-runner-controller.github.io/actions-runner-controller
+
+    - name: Install ARC Helm Chart
+      kubernetes.core.helm:
+        name: actions-runner-controller
+        chart_ref: actions-runner-controller/actions-runner-controller
+        namespace: "{{ vars.all.vars.github_actions.namespace }}"
+        state: present
+        update_repo_cache: true
+        wait: true
+        values:
+          authSecret:
+            create: true
+            github_token: "{{ vars.all.vars.github_actions.github_token }}"
+
+    - name: Wait for ARC CRDs to be established
+      command: kubectl wait --for condition=established --timeout=60s crd/runnerdeployments.actions.summerwind.dev
+      changed_when: false
+
+    - name: Create RunnerDeployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: actions.summerwind.dev/v1alpha1
+          kind: RunnerDeployment
+          metadata:
+            name: chater-runner
+            namespace: "{{ vars.all.vars.github_actions.namespace }}"
+          spec:
+            replicas: 1
+            template:
+              spec:
+                repository: singularis/chater
+                dockerEnabled: true
+                dockerdWithinRunnerContainer: true
+                ephemeral: true
