@@ -169,7 +169,7 @@
                       href: {{ vars.all.vars.homepage.homepagelinks.openclaw }}
                       siteMonitor: {{ vars.all.vars.homepage.pings_full.openclaw }}
                       abbr: OC
-                      icon: /custom/openclaw.png
+                      icon: /custom/openclaw-lobster.png
                       description: OpenClaw UI
                   - Jupyter:
                       href: {{ vars.all.vars.homepage.homepagelinks.jupyter }}
@@ -194,6 +194,12 @@
                       icon: /custom/raspberrypi-color.svg
                       description: Pi Camera
               - Development:
+                  - ArgoCD:
+                      href: {{ vars.all.vars.homepage.homepagelinks.argocd }}
+                      siteMonitor: {{ vars.all.vars.homepage.pings_full.argocd }}
+                      abbr: AR
+                      icon: /custom/argocd.png
+                      description: GitOps
                   - MinIO Console:
                       href: {{ vars.all.vars.homepage.homepagelinks.minio_console_eater }}
                       siteMonitor: {{ vars.all.vars.homepage.pings_full.minio_console_eater }}
