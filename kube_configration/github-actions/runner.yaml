@@ -28,6 +28,8 @@
         update_repo_cache: true
         wait: true
         values:
+          image:
+            repository: "docker.io/summerwind/actions-runner-controller"
           authSecret:
             create: true
             github_token: "{{ vars.all.vars.github_actions.github_token }}"
@@ -52,4 +54,14 @@
                 repository: singularis/chater
                 dockerEnabled: true
                 dockerdWithinRunnerContainer: false
+                image: docker.io/summerwind/actions-runner:latest
+                dockerEnv:
+                  - name: DOCKER_DRIVER
+                    value: vfs
+                volumes:
+                  - name: docker-data
+                    emptyDir: {}
+                dockerVolumeMounts:
+                  - name: docker-data
+                    mountPath: /var/lib/docker
                 ephemeral: true
