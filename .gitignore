@@ -1,6 +1,7 @@
 # --- Project Secrets & Configurations ---
 vars.yaml
 vars*
+friend-kubeconfig.yaml
 workers_inventory.ini
 certs/
 kube_configration/secrets/
