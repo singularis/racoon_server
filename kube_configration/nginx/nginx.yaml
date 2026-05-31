@@ -141,6 +141,24 @@
                     proxy_set_header X-Forwarded-Proto https;
                   }
 
+                  # Dev App
+                  location /dev/ {
+                    limit_req zone=req_per_ip burst=20 nodelay;
+                    limit_conn conn_per_ip 50;
+                    proxy_pass http://chater-ui-dev.chater-ui-dev.svc.cluster.local:5000;
+                  }
+
+                  # Dev Autocomplete WebSocket API
+                  location /dev/autocomplete {
+                    limit_req zone=req_per_ip burst=40 nodelay;
+                    limit_conn conn_per_ip 200;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_read_timeout 3600s;
+                    proxy_pass http://eater-users-dev-internal.eater-dev.svc.cluster.local:80/autocomplete;
+                  }
+
                   # Default app
                   location / {
                     limit_req zone=req_per_ip burst=20 nodelay;
