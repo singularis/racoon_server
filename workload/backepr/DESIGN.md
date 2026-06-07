@@ -1,4 +1,6 @@
-# Backepr — Backup Architecture v7
+# Backepr — Backup Architecture v9
+
+> 🆕v8 updates: Archive drive sizing changed from 12 TB to 12 TB. Retention policy extended to 10 years (10 yearly snapshots).
 
 > Complete implementation spec. v7: two-chip hardware controller (Pi Zero W + ESP-01S). Previous changes marked 🆕v6. Two-chip changes marked 🆕v7.
 
@@ -10,7 +12,7 @@
 |------|---------|
 | **Backepr** | Backup orchestrator — K8s Helm chart deployment with web UI |
 | **Staging** | 6 TB HDD on `racoon-gpu` (`/backup/main`) — LUKS encrypted 🆕v6 |
-| **Archive** | 14 TB HDD on `racoon` (`/backup/archive`) — Restic repo, encrypted, exFAT |
+| **Archive** | 12 TB HDD on `racoon` (`/backup/archive`) — Restic repo, encrypted, exFAT |
 | **Mac TM** | Two independent Time Machine setups — not part of the backup pipeline |
 
 ---
@@ -24,7 +26,7 @@
 | 2 | Radxa X4 | worker | — | — | Always on |
 | 3 | HP EliteDesk 850 G9 | `racoon` | 1 TB SSD #1 (Iva's TM) | `/other_ssd/mac_iva` | Always on |
 | | | | 1 TB SSD #2 (Dante's TM) | `/other_hdd/mac_dante` | Always on |
-| | | | 14 TB WD Enterprise (archive) | `/backup/archive` | Pi Zero W + ESP-01S relay (12V bay power) 🆕v7 |
+| | | | 12 TB WD Enterprise (archive) | `/backup/archive` | Pi Zero W + ESP-01S relay (12V bay power) 🆕v7 |
 
 > [!NOTE]
 > **Backepr runs on any node** — 3-node etcd, no pinning needed.
@@ -48,7 +50,7 @@ graph TB
     end
 
     subgraph "racoon (always on)"
-        HDD14["14 TB Archive<br/>/backup/archive<br/>Restic repo (exFAT)"]
+        HDD14["12 TB Archive<br/>/backup/archive<br/>Restic repo (exFAT)"]
         GDATA["/backup/google/"]
         ETCD["etcd snapshots"]
     end
@@ -91,7 +93,7 @@ graph TB
 |------|------|----------|----------|------|
 | **1 — Live TM** | Mac backups | 2 × 1 TB SSDs (`racoon`) | Continuous (macOS) | Samba × 2 |
 | **2 — Staging** | Home dir, etcd, DB dumps, Google data, Takeout | 6 TB LUKS (`racoon-gpu`) 🆕v6 | Weekly (Monday 09:00) | rsync via SSH + Samba |
-| **3 — Archive** | Deduplicated cold copy | 14 TB (`racoon`) | Weekly (if ≥7 days) | Restic (encrypted, auto-pruned) |
+| **3 — Archive** | Deduplicated cold copy | 12 TB (`racoon`) | Weekly (if ≥7 days) | Restic (encrypted, auto-pruned) |
 | **4 — Cloud Pull** | Google Drive + Docs | `racoon` local → 6 TB | Every 3 months | rclone |
 
 ---
@@ -148,7 +150,7 @@ data:
     hardware_controller:
       # ESP-01S — always-on relay watchdog
       esp_address: "http://{{ backepr.esp01s_ip }}"
-      power_on: "/power/on"
+      power_on: "/click"
       power_off: "/power/off"
       status: "/power/status"
       ping: "/ping"
@@ -201,8 +203,8 @@ data:
     # ─── Restic Retention ────────────────────────
     restic_retention:
       keep_weekly: 4
-      keep_monthly: 6
-      keep_yearly: 2
+      keep_monthly: 12
+      keep_yearly: 10
       auto_prune: true
       min_snapshots: 2
       test_restore_after_archive: true                   # 🆕v6
@@ -223,7 +225,7 @@ data:
           - name: "6TB Staging"
             node: "racoon-gpu"
             device: "/dev/sdX"               # confirm actual device
-          - name: "14TB Archive"
+          - name: "12TB Archive"
             node: "racoon"
             device: "/dev/sdY"               # confirm actual device
         alert_on_reallocated_sectors: true
@@ -316,7 +318,7 @@ stringData:
 | **Actions** | Buttons: Wake GPU, LUKS Unlock, Start Sync, Start Archive, Google Pull, HDD On/Off, Camera Snap, GPU Shutdown 🆕v7 |
 | **Logs** | Filterable by tier/date. **Events + failures only, no success file lists** 🆕v6 |
 | **History** | Table: date, tier, status, duration, bytes transferred, snapshot ID, **test restore result** 🆕v6 |
-| **Health** | Node status, mount status, ESP-01S + Pi Zero W health, SMART, motor hours 🆕v7, capacity check (14 TB ≥ 6 TB × 1.1), **fragmentation %** 🆕v6, **dead man's switch status** 🆕v6, **camera feed** 🆕v7 |
+| **Health** | Node status, mount status, ESP-01S + Pi Zero W health, SMART, motor hours 🆕v7, capacity check (12 TB ≥ 6 TB × 1.1), **fragmentation %** 🆕v6, **dead man's switch status** 🆕v6, **camera feed** 🆕v7 |
 | **Config** | Read-only ConfigMap view + masked secrets |
 | **Prune** | Auto-prune runs after archive (min 2 safety). Manual button also available |
 
@@ -340,15 +342,15 @@ stringData:
 | 5 | **6 TB not mounted** (`.present` missing) | `mountpoint` check fails | ❌ Alert, shutdown GPU | Next Monday |
 | 6 | **rsync partial failure** (some files) | rsync exits with code 23/24 | ⚠️ Continue backup, log failed files, alert with list | Next Monday (incremental catches up) |
 | 7 | **rsync total failure** (network/SSH) | rsync exits with code >24 | ❌ Alert, shutdown GPU | Retry once after 60s, then give up |
-| 8 | **ESP-01S unreachable** 🆕v7 | HTTP timeout on ESP-01S `/power/on` | ❌ Alert: "Can't power on 14 TB — ESP-01S offline", skip archive, shutdown GPU | Next Monday |
-| 9 | **14 TB mount failed** | `.present` missing after relay power-on | ❌ Alert, send `/power/off`, shutdown GPU | Next Monday |
+| 8 | **ESP-01S unreachable** 🆕v7 | HTTP timeout on ESP-01S `/click` | ❌ Alert: "Can't power on 12 TB — ESP-01S offline", skip archive, shutdown GPU | Next Monday |
+| 9 | **12 TB mount failed** | `.present` missing after relay power-on | ❌ Alert, send `/click`, shutdown GPU | Next Monday |
 | 19 | **Pi Zero W unreachable** 🆕v7 | SSH to Pi times out | ⚠️ Log warning. Non-critical — camera/motor-hours unavailable, backup continues via ESP relay | N/A |
 | 20 | **Camera failure** 🆕v7 | `libcamera-still` returns error | ⚠️ Log warning. Non-critical — backup continues. Debug via SSH | N/A |
-| 10 | **Restic backup failed** | restic exits non-zero | ❌ Alert, do NOT prune, power off 14 TB, shutdown GPU | Retry once |
+| 10 | **Restic backup failed** | restic exits non-zero | ❌ Alert, do NOT prune, power off 12 TB, shutdown GPU | Retry once |
 | 11 | **Restic check failed** (integrity) 🆕v6 | `restic check` finds errors | 🔴 **HIGH PRIORITY alert**, skip prune, log error details. Next run: **retry check**. If fails again: stop and wait for manual `restic rebuild-index` | Manual fix, then auto-retry |
 | 12 | **Auto-prune refused** (≤2 snapshots) | Snapshot count check | ⚠️ Alert: "Only N snapshots, prune skipped" | N/A |
 | 13 | **Test restore mismatch** 🆕v6 | SHA-256 of restored file ≠ source | 🔴 **HIGH ALERT**: "Backup integrity issue — restored file doesn't match source" | Manual investigation |
-| 14 | **14 TB capacity insufficient** | Free space < staging used × 1.10 | ⚠️ Alert: "Archive running low — manual prune or expand needed" | Shows in every backup report |
+| 14 | **12 TB capacity insufficient** | Free space < staging used × 1.10 | ⚠️ Alert: "Archive running low — manual prune or expand needed" | Shows in every backup report |
 | 15 | **SSH connection drops mid-rsync** | rsync exits unexpectedly | rsync `--partial` preserves transferred data. Retry once. | Retry once |
 | 16 | **GPU didn't shutdown** (stuck) | Post-shutdown ping still succeeds after 5 min | ⚠️ Alert: "GPU shutdown may have failed" | Log only |
 | 17 | **Backepr itself is down** 🆕v6 | healthchecks.io doesn't receive ping for 14 days | 🔴 **External alert** from healthchecks.io to your email | N/A — external |
@@ -421,7 +423,7 @@ cryptsetup luksClose backup-staging
 ```
 
 > [!IMPORTANT]
-> Under LUKS, the filesystem is **ext4** (not exFAT). LUKS provides encryption, ext4 provides journaling. The 6 TB drive doesn't need Mac-compatibility — only the 14 TB archive drive needs that (exFAT stays for 14 TB).
+> Under LUKS, the filesystem is **ext4** (not exFAT). LUKS provides encryption, ext4 provides journaling. The 6 TB drive doesn't need Mac-compatibility — only the 12 TB archive drive needs that (exFAT stays for 12 TB).
 
 ### Remote Unlock via SSH
 
@@ -452,7 +454,7 @@ The LUKS passphrase is stored in the `backepr-secrets` K8s Secret (from `vars.ya
 3. Wake GPU via Backepr UI
 4. Mount 6 TB in Finder: `Cmd+K` → `smb://192.168.0.123/staging`
 5. Drop ZIP into `/google/photos/`
-6. Next archive cycle backs up to 14 TB
+6. Next archive cycle backs up to 12 TB
 
 ---
 
@@ -492,7 +494,7 @@ sequenceDiagram
     participant GPU as racoon-gpu
     participant ESP as ESP-01S
     participant PI as Pi Zero W
-    participant HDD as 14 TB
+    participant HDD as 12 TB
     participant HC as healthchecks.io
     participant Mail as Email
 
@@ -514,30 +516,30 @@ sequenceDiagram
                 BP->>BP: 6. Check last archive timestamp
 
                 alt ≥ 7 days
-                    BP->>ESP: 7. POST /power/on
-                    ESP->>HDD: 14 TB spins up (relay closed)
+                    BP->>ESP: 7. POST /click
+                    ESP->>HDD: 12 TB spins up (relay closed)
                     BP->>BP: Wait for /backup/archive mount
                     loop Every 30 min
                         BP->>ESP: POST /ping (keep-alive)
                     end
-                    alt 14 TB mounted
+                    alt 12 TB mounted
                         BP->>BP: 8. restic backup
                         BP->>BP: 9. Auto-prune (if snapshots > 2)
                         BP->>BP: 10. restic check
                         alt Check passed
                             BP->>BP: 11. Test restore (1 random file, SHA-256)
-                            BP->>BP: 12. Check 14TB capacity ≥ 6TB × 1.1
+                            BP->>BP: 12. Check 12TB capacity ≥ 6TB × 1.1
                             BP->>BP: 13. Check fragmentation %
                             BP->>BP: 14. umount /backup/archive
                             BP->>BP: 15. hdparm -Y /dev/sdY (graceful spin-down)
                             BP->>BP: Wait 10s for platters to stop
-                            BP->>ESP: 16. POST /power/off
+                            BP->>ESP: 16. POST /click
                             BP->>PI: 17. SSH libcamera-still 🆕v7
                         else Check FAILED
                             BP->>Mail: 🔴 HIGH: Restic integrity error!
                             BP->>BP: Skip prune. Next run: retry
                             BP->>BP: umount + hdparm -Y (graceful spin-down)
-                            BP->>ESP: POST /power/off
+                            BP->>ESP: POST /click
                         end
 
                         BP->>GPU: 15. Check user sessions (who/nvidia-smi)
@@ -549,9 +551,9 @@ sequenceDiagram
 
                         BP->>HC: POST /ping (dead man's switch)
                         BP->>Mail: ✅ Detailed HTML report
-                    else 14 TB mount failed
-                        BP->>ESP: POST /power/off
-                        BP->>Mail: ❌ 14 TB mount failed
+                    else 12 TB mount failed
+                        BP->>ESP: POST /click
+                        BP->>Mail: ❌ 12 TB mount failed
                     end
                 else < 7 days (archive skipped)
                     BP->>GPU: LUKS close + shutdown (if no user)
@@ -605,12 +607,12 @@ Every backup email includes:
 │                                      │
 │  Storage Health:                     │
 │    6 TB: 2.1 TB used (35%) ✅        │
-│    14 TB: 892 GB used (6.2%) ✅      │
-│    Capacity: 14TB can fit 6TB×1.1 ✅ │
+│    12 TB: 892 GB used (6.2%) ✅      │
+│    Capacity: 12TB can fit 6TB×1.1 ✅ │
 │    Fragmentation: 3% ✅              │
 │                                      │
 │  Retention:                          │
-│    Snapshots: 8 (pruned 2 expired)   │
+│    Snapshots: 26 (pruned 2 expired)   │
 │    Oldest: 2026-01-06                │
 │    Newest: 2026-03-03                │
 │                                      │
@@ -659,12 +661,12 @@ graph TB
 
     subgraph "Power"
         RELAY["12V Relay Module"]
-        HDD["14 TB HDD Bay"]
+        HDD["12 TB HDD Bay"]
         PSU["Wall 12V Adapter"]
     end
 
-    BP_HTTP -->|"POST /power/on"| ESP_HTTP
-    BP_HTTP -->|"POST /power/off"| ESP_HTTP
+    BP_HTTP -->|"POST /click"| ESP_HTTP
+    BP_HTTP -->|"POST /click"| ESP_HTTP
     BP_HTTP -->|"POST /ping"| ESP_HTTP
     BP_HTTP -->|"GET /power/status"| ESP_HTTP
     BP_SSH -->|"ssh pi: libcamera-still"| PI_SSH
@@ -703,11 +705,11 @@ graph TB
 - **Built-in LED state indicator** (visual debugging via short blinks):
   - **WiFi Connecting**: Fast continuous blinking (100ms ON / 100ms OFF)
   - **WiFi Connected / Idle**: 1 short blink every 5 seconds (connection heartbeat)
-  - **Signal `/power/on` received**: 2 short blinks
-  - **Signal `/power/off` received**: 3 short blinks
+  - **Signal `/click` received**: 2 short blinks
+  - **Signal `/click` received**: 3 short blinks
   - **Signal `/ping` received**: 4 short blinks
 - **Credential Masking**: Wi-Fi credentials (`dante`) are NOT hardcoded in the Git repository. They are stored in `vars.yaml` (`esp01_hardware.wifi_ssid` and `wifi_password`). Ansible injects them into a local `secrets.h` file before compiling the ESP01 sketch. `secrets.h` is ignored in `.gitignore`.
-- WiFi HTTP server: `/power/on`, `/power/off`, `/power/status`, `/ping`
+- WiFi HTTP server: `/click`, `/click`, `/power/status`, `/ping`
 - Auto-off timer: 2 hours, reset by `/ping` keep-alive
 - **This chip's job is to be dumb and reliable** — it switches the relay and shows status
 - If the Pi crashes, the ESP still cuts power after timeout
@@ -776,9 +778,10 @@ graph TB
                             │  ┌──────────────────────┐           │ 12V power  │
   ┌─────────────┐  5V USB   │  │  Pi Zero W            │           │            │
   │  racoon     │──────────→│  │                       │  ┌───────┴──────────┐ │
-  │  USB port   │           │  │  CSI → Pi Camera      │  │  14 TB WD HDD    │ │
-  └─────────────┘           │  │  WiFi → SSH           │  │                  │ │
-                            │  │  Motor hours service  │  │  (enterprise)    │ │
+  │  USB ports  │           │  │  CSI → Pi Camera      │  │  12 TB WD HDD    │ │
+  │             │  USB Data │  │  WiFi → SSH           │  │  (in USB bay)    │ │
+  │             │═══════════╪══╪═══════════════════════╪═>│                  │ │
+  └─────────────┘           │  │  Motor hours service  │  │                  │ │
                             │  │  Python + systemd     │  │                  │ │
                             │  └──────────────────────┘  └──────────────────┘ │
                             │                                                   │
@@ -802,20 +805,19 @@ graph TB
 1. Backepr: umount /backup/archive           # unmount filesystem
 2. Backepr: hdparm -Y /dev/sdY               # park heads + stop motor
 3. Backepr: sleep 10                          # wait for platters to stop
-4. Backepr: POST /power/off to ESP-01S       # ESP opens relay — 12V cut
+4. Backepr: POST /click to ESP-01S       # ESP opens relay — 12V cut
 5. Backepr: SSH pi: libcamera-still           # 🆕v7 snap — verify bay LEDs off
 6. Pi: motor_hours service detects power off  # updates JSON counter
 ```
 
-### 12.7 HTTP API — ESP-01S (unchanged from v6.2)
+### 12.7 HTTP API — ESP-01S (Soft Power Emulation)
 
 | Endpoint | Method | Action |
 |----------|--------|--------|
-| `/power/on` | POST | Close relay → bay powers on, reset auto-off timer |
-| `/power/off` | POST | Open relay → bay loses power (call AFTER hdparm!) |
-| `/power/status` | GET | `{"powered": bool, "uptime_sec": N}` |
-| `/ping` | POST | Keep-alive, reset auto-off timer |
-| `/health` | GET | `{"wifi_rssi": N, "heap_free": N, "relay_state": bool}` |
+| `/click` | POST | Pulses the relay for 1 second to emulate a human pressing the power button. Toggles `powered` state. |
+| `/power/status` | GET | Returns `{"powered": bool, "uptime_sec": N}` based on virtual power state. |
+| `/health` | GET | Returns `{"wifi_rssi": N, "heap_free": N, "relay_state": bool, ...}` |
+| `/reboot` | POST | Restarts the ESP module |
 
 ### 12.8 SSH API — Pi Zero W 🆕v7
 
@@ -923,7 +925,7 @@ This means you can:
 
 ### 12.12 Safety (same as v6.2 + new)
 - Auto-off: 2 hours, reset on `/ping` (every 30 min during backup) — **ESP handles this**
-- **Backepr always runs `hdparm -Y` before sending `/power/off`**
+- **Backepr always runs `hdparm -Y` before sending `/click`**
 - If auto-off fires (Backepr crashed), ESP cuts relay — hard power cut, acceptable
 - ESP-01S pull-ups prevent relay activation during boot
 - **Pi crash doesn't affect relay** — ESP is independent, keeps watchdog running
@@ -1021,7 +1023,7 @@ workload/
 │   │                               #   - Generate SSH key pair
 │   │                               #   - Deploy authorized_keys
 │   │                               #   - Set POSIX ACLs
-│   │                               #   - Init Restic repo on 14 TB
+│   │                               #   - Init Restic repo on 12 TB
 │   │                               #   - Pre-populate SSH known_hosts 🆕v6
 │   │                               #   - etcd backup cron
 │   │                               #   - eater pgdump cron
@@ -1102,7 +1104,7 @@ workload/
   - Generate SSH key pair + deploy `authorized_keys`
   - **Pre-populate `known_hosts`** 🆕v6 (prompt user to verify fingerprints)
   - POSIX ACLs (no-delete `backup` user)
-  - Format 14 TB exFAT
+  - Format 12 TB exFAT
   - Init Restic repo
   - etcd snapshot + pgdump timers
   - Configure rclone Google Drive OAuth
@@ -1137,7 +1139,7 @@ workload/
 - [ ] Connect Pi Camera Module, test `libcamera-still`
 - [ ] Configure Pi WiFi + static IP
 - [ ] Deploy Backepr SSH key to Pi `authorized_keys`
-- [ ] Test ESP relay: `/power/on`, `/power/off`, auto-off timer
+- [ ] Test ESP relay: `/click`, `/click`, auto-off timer
 - [ ] Test Pi motor-hours polling of ESP `/power/status`
 - [ ] Test camera snapshots via SSH from Backepr
 - [ ] Install in HDD bay (ESP for relay, Pi for monitoring)
@@ -1163,18 +1165,18 @@ workload/
 ## 18. Emergency Restore Runbook
 
 ### Scenario A: Need files (normal)
-1. Backepr UI → Power on 14 TB
+1. Backepr UI → Power on 12 TB
 2. `restic -r /backup/archive/restic-repo mount ~/restore`
-3. Browse, copy, unmount → Power off 14 TB
+3. Browse, copy, unmount → Power off 12 TB
 
 ### Scenario B: Grab drive and go
-1. Pull 14 TB from HDD bay
+1. Pull 12 TB from HDD bay
 2. Plug into Mac (exFAT = native mount)
 3. `brew install restic`
 4. `RESTIC_PASSWORD=xxx restic -r /Volumes/ARCHIVE/restic-repo mount ~/restore`
 
 ### Scenario C: Full K8s cluster recovery
-1. Get etcd snapshot from 14 TB backup
+1. Get etcd snapshot from 12 TB backup
 2. `etcdctl snapshot restore snapshot.db`
 3. Restart kubelet → cluster recovers
 4. `git clone racoon_server` → re-run playbooks
