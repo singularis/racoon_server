@@ -1,5 +1,5 @@
 """
-test_esp01s_firmware.py — Contract tests for ESP-01S relay watchdog.
+test_esp01s_firmware.py — Contract tests for ESP-01S relay controller.
 
 These tests verify the firmware behaves correctly by hitting the real
 ESP-01S over HTTP. Set ESP_HOST env var to the device IP.
@@ -18,12 +18,11 @@ import time
 import pytest
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.request import Request, urlopen
-from urllib.error import URLError
+from urllib.error import HTTPError
 
 # ── Configuration ─────────────────────────────────────────
 
 ESP_HOST = os.environ.get("ESP_HOST", "")
-AUTO_OFF_SEC = 2  # mock uses a tiny auto-off for fast testing
 
 # ── Mock ESP Server (mirrors firmware logic) ──────────────
 
@@ -31,12 +30,6 @@ class MockESPState:
     def __init__(self):
         self.powered = False
         self.power_on_time = 0
-        self.last_ping = 0
-        self.auto_off_sec = AUTO_OFF_SEC
-
-    def check_auto_off(self):
-        if self.powered and (time.time() - self.last_ping > self.auto_off_sec):
-            self.powered = False
 
 
 class MockESPHandler(BaseHTTPRequestHandler):
@@ -52,30 +45,29 @@ class MockESPHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode())
 
     def do_POST(self):
-        self.state.check_auto_off()
-        if self.path == "/power/on":
-            self.state.powered = True
-            self.state.power_on_time = time.time()
-            self.state.last_ping = time.time()
-            self._json(200, {"ok": True, "powered": True})
-        elif self.path == "/power/off":
-            self.state.powered = False
-            self._json(200, {"ok": True, "powered": False})
-        elif self.path == "/ping":
+        if self.path == "/click":
+            self.state.powered = not self.state.powered
             if self.state.powered:
-                self.state.last_ping = time.time()
-            self._json(200, {"ok": True, "ping": "pong"})
+                self.state.power_on_time = time.time()
+            self._json(200, {"ok": True, "powered": self.state.powered})
+        elif self.path == "/reboot":
+            self._json(200, {"ok": True, "message": "rebooting"})
         else:
             self._json(404, {"error": "not_found"})
 
     def do_GET(self):
-        self.state.check_auto_off()
         if self.path == "/power/status":
             up = int(time.time() - self.state.power_on_time) if self.state.powered else 0
-            self._json(200, {"powered": self.state.powered, "uptime_sec": up})
+            self._json(200, {
+                "powered": self.state.powered,
+                "uptime_sec": up
+            })
         elif self.path == "/health":
             self._json(200, {"wifi_rssi": -50, "heap_free": 30000,
-                             "relay_state": self.state.powered})
+                             "relay_state": self.state.powered,
+                             "relay_active": False,
+                             "reset_reason": "Power On",
+                             "uptime_ms": 0})
         else:
             self._json(404, {"error": "not_found"})
 
@@ -88,7 +80,9 @@ def base_url():
     if ESP_HOST:
         url = f"http://{ESP_HOST}"
         # ensure we start with relay off
-        _post(url + "/power/off")
+        s = _get(url + "/power/status")
+        if s.get("powered"):
+            _post(url + "/click")
         yield url
     else:
         srv = HTTPServer(("127.0.0.1", 0), MockESPHandler)
@@ -102,12 +96,16 @@ def base_url():
 @pytest.fixture(autouse=True)
 def reset_relay(base_url):
     """Ensure relay is off before each test."""
-    _post(base_url + "/power/off")
+    s = _get(base_url + "/power/status")
+    if s.get("powered"):
+        _post(base_url + "/click")
     # Reset mock state timing if using mock
     if not ESP_HOST:
         MockESPHandler.state = MockESPState()
     yield
-    _post(base_url + "/power/off")
+    s = _get(base_url + "/power/status")
+    if s.get("powered"):
+        _post(base_url + "/click")
 
 
 # ── HTTP helpers ──────────────────────────────────────────
@@ -129,42 +127,26 @@ def _post(url):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-class TestPowerOn:
-    def test_power_on_returns_ok(self, base_url):
-        r = _post(base_url + "/power/on")
+class TestClick:
+    def test_click_toggles_power(self, base_url):
+        r = _post(base_url + "/click")
         assert r["ok"] is True
         assert r["powered"] is True
-
-    def test_power_on_sets_status(self, base_url):
-        _post(base_url + "/power/on")
+        
         s = _get(base_url + "/power/status")
         assert s["powered"] is True
-
-    def test_power_on_starts_uptime(self, base_url):
-        _post(base_url + "/power/on")
-        time.sleep(1)
-        s = _get(base_url + "/power/status")
-        assert s["uptime_sec"] >= 1
-
-
-class TestPowerOff:
-    def test_power_off_returns_ok(self, base_url):
-        _post(base_url + "/power/on")
-        r = _post(base_url + "/power/off")
-        assert r["ok"] is True
+        
+        r = _post(base_url + "/click")
         assert r["powered"] is False
-
-    def test_power_off_clears_status(self, base_url):
-        _post(base_url + "/power/on")
-        _post(base_url + "/power/off")
+        
         s = _get(base_url + "/power/status")
         assert s["powered"] is False
 
-    def test_power_off_resets_uptime(self, base_url):
-        _post(base_url + "/power/on")
-        _post(base_url + "/power/off")
+    def test_click_starts_uptime(self, base_url):
+        _post(base_url + "/click")
+        time.sleep(1)
         s = _get(base_url + "/power/status")
-        assert s["uptime_sec"] == 0
+        assert s["uptime_sec"] >= 1
 
 
 class TestStatus:
@@ -179,34 +161,6 @@ class TestStatus:
         assert "uptime_sec" in s
 
 
-class TestPing:
-    def test_ping_returns_pong(self, base_url):
-        r = _post(base_url + "/ping")
-        assert r["ok"] is True
-        assert r["ping"] == "pong"
-
-    def test_ping_resets_auto_off(self, base_url):
-        """Ping should extend the auto-off timer."""
-        _post(base_url + "/power/on")
-        # Wait almost until auto-off
-        time.sleep(AUTO_OFF_SEC * 0.7)
-        _post(base_url + "/ping")
-        # Wait a bit more — without ping this would have timed out
-        time.sleep(AUTO_OFF_SEC * 0.7)
-        s = _get(base_url + "/power/status")
-        assert s["powered"] is True
-
-
-class TestAutoOff:
-    def test_auto_off_cuts_power(self, base_url):
-        """Relay must turn off after timeout with no ping."""
-        _post(base_url + "/power/on")
-        # Wait for auto-off to trigger
-        time.sleep(AUTO_OFF_SEC + 1)
-        s = _get(base_url + "/power/status")
-        assert s["powered"] is False
-
-
 class TestHealth:
     def test_health_returns_fields(self, base_url):
         h = _get(base_url + "/health")
@@ -215,70 +169,58 @@ class TestHealth:
         assert "relay_state" in h
 
     def test_health_relay_matches_status(self, base_url):
-        _post(base_url + "/power/on")
+        _post(base_url + "/click")
         h = _get(base_url + "/health")
         assert h["relay_state"] is True
-        _post(base_url + "/power/off")
+        _post(base_url + "/click")
         h = _get(base_url + "/health")
         assert h["relay_state"] is False
 
 
 class TestNotFound:
     def test_unknown_path_returns_404(self, base_url):
-        try:
+        with pytest.raises(HTTPError) as exc_info:
             _get(base_url + "/does/not/exist")
-            assert False, "Should have raised"
-        except Exception:
-            pass  # 404 expected
+        assert exc_info.value.code == 404
 
 
-class TestIdempotency:
-    def test_double_power_on(self, base_url):
-        """Calling /power/on twice should not break anything."""
-        _post(base_url + "/power/on")
-        _post(base_url + "/power/on")
-        s = _get(base_url + "/power/status")
-        assert s["powered"] is True
-
-    def test_double_power_off(self, base_url):
-        """Calling /power/off when already off should be safe."""
-        r = _post(base_url + "/power/off")
+class TestReboot:
+    def test_reboot_endpoint(self, base_url):
+        r = _post(base_url + "/reboot")
         assert r["ok"] is True
-        s = _get(base_url + "/power/status")
-        assert s["powered"] is False
+        assert r["message"] == "rebooting"
 
-    def test_ping_when_off(self, base_url):
-        """Pinging when relay is off should not turn it on."""
-        _post(base_url + "/ping")
-        s = _get(base_url + "/power/status")
-        assert s["powered"] is False
+
+class TestRateLimit:
+    @pytest.mark.skipif(not ESP_HOST, reason="Rate-limit requires real hardware timing")
+    def test_rapid_click_returns_429(self, base_url):
+        """Second click while first is pending should be rejected."""
+        _post(base_url + "/click")
+        with pytest.raises(HTTPError) as exc_info:
+            _post(base_url + "/click")
+        assert exc_info.value.code == 429
 
 
 class TestFullSequence:
     def test_backepr_happy_path(self, base_url):
         """Simulate the full Backepr backup sequence."""
-        # 1. Power on
-        r = _post(base_url + "/power/on")
+        # 1. Power on via click
+        r = _post(base_url + "/click")
         assert r["powered"] is True
 
         # 2. Status check
         s = _get(base_url + "/power/status")
         assert s["powered"] is True
 
-        # 3. Ping keep-alive (simulating 30 min interval)
-        _post(base_url + "/ping")
-        s = _get(base_url + "/power/status")
-        assert s["powered"] is True
-
-        # 4. Health check
+        # 3. Health check
         h = _get(base_url + "/health")
         assert h["relay_state"] is True
 
-        # 5. Power off (after hdparm -Y + sleep on server side)
-        r = _post(base_url + "/power/off")
+        # 4. Power off (after hdparm -Y + sleep on server side)
+        r = _post(base_url + "/click")
         assert r["powered"] is False
 
-        # 6. Final status
+        # 5. Final status
         s = _get(base_url + "/power/status")
         assert s["powered"] is False
         assert s["uptime_sec"] == 0
