@@ -1,8 +1,19 @@
 image:
   repository: docker.io/vllm/vllm-openai
   tag: latest
-model: "openai/gpt-oss-20b"
-gpuMemoryUtilization: "0.85"
+model: "QuantTrio/Qwen3.5-9B-AWQ"
+servedModelName: "QuantTrio/Qwen3.5-9B-AWQ"
+gpuMemoryUtilization: "0.96"
+maxModelLen: "64000"
+maxNumSeqs: "4"
+enableAutoToolChoice: true
+toolCallParser: "qwen3_coder"
+reasoningParser: "deepseek_r1"
+kvCacheDtype: "fp8"
+enablePrefixCaching: true
+enableChunkedPrefill: true
+defaultChatTemplateKwargs: '{"enable_thinking":true}'
+
 service:
   type: LoadBalancer
   port: 8000

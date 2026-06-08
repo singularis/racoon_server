@@ -171,10 +171,14 @@
         force: true
         wait: true
         release_values:
+          fullnameOverride: "open-webui"
           image:
             tag: "latest"
+            pullPolicy: "Always"
           ollama:
             enabled: false
+          openaiBaseApiUrl: "http://vllm.vllm.svc.cluster.local:8000/v1"
+          openaiApiKey: "0p3n-w3bu!"
           persistence:
             enabled: true
             accessMode: ReadWriteOnce

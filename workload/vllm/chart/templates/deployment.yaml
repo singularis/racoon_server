@@ -36,12 +36,45 @@ spec:
             - vllm.entrypoints.openai.api_server
             - "--model"
             - "{{ .Values.model }}"
+            {{- if .Values.servedModelName }}
+            - "--served-model-name"
+            - "{{ .Values.servedModelName }}"
+            {{- end }}
             - "--gpu-memory-utilization"
             - "{{ .Values.gpuMemoryUtilization }}"
             - "--max-model-len"
-            - "131072"
+            - "{{ .Values.maxModelLen }}"
             - "--port"
             - "8000"
+            {{- if .Values.maxNumSeqs }}
+            - "--max-num-seqs"
+            - "{{ .Values.maxNumSeqs }}"
+            {{- end }}
+            {{- if .Values.enableAutoToolChoice }}
+            - "--enable-auto-tool-choice"
+            {{- end }}
+            {{- if .Values.toolCallParser }}
+            - "--tool-call-parser"
+            - "{{ .Values.toolCallParser }}"
+            {{- end }}
+            {{- if .Values.reasoningParser }}
+            - "--reasoning-parser"
+            - "{{ .Values.reasoningParser }}"
+            {{- end }}
+            {{- if .Values.kvCacheDtype }}
+            - "--kv-cache-dtype"
+            - "{{ .Values.kvCacheDtype }}"
+            {{- end }}
+            {{- if .Values.enablePrefixCaching }}
+            - "--enable-prefix-caching"
+            {{- end }}
+            {{- if .Values.enableChunkedPrefill }}
+            - "--enable-chunked-prefill"
+            {{- end }}
+            {{- if .Values.defaultChatTemplateKwargs }}
+            - "--default-chat-template-kwargs"
+            - '{{ .Values.defaultChatTemplateKwargs }}'
+            {{- end }}
           ports:
             - containerPort: 8000
               name: http
