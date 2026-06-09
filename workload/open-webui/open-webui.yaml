@@ -192,6 +192,10 @@
           admin:
             username: "{{ vars.all.vars.openwebui.admin_username }}"
             password: "{{ vars.all.vars.openwebui.admin_password }}"
+          websocket:
+            redis:
+              image:
+                repository: docker.io/library/redis
         #TODO Fix extrenal DNS access, use hostNetwork: true to resolve gpu
 #    - name: Install iptables-persistent
 #      ansible.builtin.package:
